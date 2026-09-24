@@ -1,0 +1,443 @@
+:root {
+  font-family: Inter, "Microsoft YaHei", "PingFang SC", sans-serif;
+  color: #172346;
+  background: #f8faff;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button,
+input {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+  color: inherit;
+  border: 0;
+  background: none;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #7185ef;
+  outline-offset: 5px;
+}
+#app {
+  height: 100svh;
+  min-height: 560px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.topbar {
+  height: 56px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 3.2%;
+  gap: 90px;
+  background: #ffffff60;
+}
+.brand {
+  font-size: 23px;
+  font-weight: 750;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: -0.7px;
+}
+.brand > span {
+  color: #6787ed;
+  font-size: 32px;
+}
+nav {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 36px;
+}
+nav a,
+nav button {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  position: relative;
+  color: #8490a9;
+}
+nav .active {
+  font-weight: 600;
+  color: #172346;
+}
+nav .active:after {
+  content: "";
+  height: 3px;
+  background: #6e7ef0;
+  position: absolute;
+  bottom: 7px;
+  left: 0;
+  right: 0;
+  border-radius: 4px;
+}
+.header-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.header-actions > span {
+  color: #959fb8;
+  font-size: 12px;
+}
+.avatar {
+  height: 34px;
+  width: 34px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #e3eafe, #dcd7f6);
+  border: 3px solid white;
+  border-radius: 50%;
+  color: #7180b5;
+}
+main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(ellipse at 50% 66%, #eaeaff65, transparent 55%),
+    radial-gradient(ellipse at 18% 70%, #eaf8ff60, transparent 45%);
+}
+.intro {
+  flex-shrink: 0;
+  text-align: center;
+  padding: 20px 20px 0;
+}
+.universe-shell {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  width: 100%;
+  isolation: isolate;
+}
+.universe-stage {
+  position: absolute;
+  width: 1440px;
+  height: 660px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(var(--scene-scale, 1));
+  transform-origin: center;
+}
+.scene-halo {
+  position: absolute;
+  left: 430px;
+  top: 240px;
+  width: 590px;
+  height: 380px;
+  background: radial-gradient(ellipse, #dfdfff70, transparent 68%);
+  pointer-events: none;
+}
+.universe-canvas {
+  position: absolute;
+  inset: 0;
+  width: 1440px;
+  height: 660px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.6s;
+}
+.webgl-ready .universe-canvas {
+  opacity: 1;
+}
+.mentor {
+  position: absolute;
+  left: 534px;
+  top: 26px;
+  width: 372px;
+  height: 472px;
+  pointer-events: none;
+}
+.mentor-image {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 15px 19px #9499c51a);
+  user-select: none;
+}
+.mentor-platform {
+  position: absolute;
+  left: -77px;
+  bottom: -20px;
+  width: 526px;
+  height: 94px;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    #b9bce235,
+    #eaeaff40 45%,
+    #fff8 66%,
+    transparent 68%
+  );
+  border: 1px solid #fff9;
+  box-shadow: 0 18px 45px #c2c8f030;
+}
+.mentor-platform:after {
+  content: "";
+  position: absolute;
+  inset: 22px 90px;
+  border-radius: 50%;
+  background: #adb6db28;
+  filter: blur(14px);
+}
+.planet-button {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0;
+  text-align: left;
+  border-radius: 70px;
+  z-index: 2;
+  will-change: transform;
+}
+.planet-face {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: calc(var(--radius) * 2);
+  height: calc(var(--radius) * 2);
+  flex-shrink: 0;
+  transform: scale(var(--orb-scale, 1));
+  color: var(--planet-ink);
+}
+.planet-face:after {
+  content: "";
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: -12px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--planet-color);
+  filter: blur(14px);
+  opacity: 0.22;
+  z-index: -1;
+}
+.planet-fallback {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 30% 23%,
+    #ffffffec,
+    var(--planet-color) 74%,
+    #ffffffa0
+  );
+  box-shadow:
+    inset -5px -8px 15px #8799c322,
+    inset 3px 4px 10px #fff;
+  transition: opacity 0.4s;
+}
+.webgl-ready .planet-fallback {
+  opacity: 0;
+}
+.planet-face svg {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  filter: drop-shadow(0 1px 1px #fff8);
+  opacity: 0.92;
+}
+.planet-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 112px;
+}
+.planet-info strong {
+  font-size: 15px;
+  font-weight: 550;
+  letter-spacing: 0.4px;
+  transition: color 0.2s;
+}
+.planet-button:hover strong {
+  color: var(--planet-ink);
+}
+.planet-count {
+  font-size: 13px;
+  color: #566180;
+  font-variant-numeric: tabular-nums;
+}
+.planet-count > span {
+  color: #969eb6;
+}
+.planet-progress {
+  width: 88px;
+  height: 5px;
+  border-radius: 10px;
+  background: #e5e9f3;
+  overflow: hidden;
+}
+.planet-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: 10px;
+  background: var(--planet-ink);
+  opacity: 0.65;
+}
+.chat-box {
+  position: absolute;
+  left: 460px;
+  top: 556px;
+  width: 520px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 10px 12px 10px 22px;
+  background: #ffffffeb;
+  border: 1px solid #dfe5ff;
+  border-radius: 25px;
+  box-shadow: 0 12px 38px #aab6ef26;
+  z-index: 3;
+}
+.chat-icon {
+  font-size: 28px;
+  color: #98a8d6;
+}
+.chat-box input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #344264;
+  font-size: 14px;
+  padding: 12px 0;
+}
+.chat-box input::placeholder {
+  color: #9da8bf;
+}
+.chat-box:focus-within {
+  outline: 2px solid #aebaf5;
+}
+.send {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #8198fb, #5e75e4);
+  color: white;
+  box-shadow: 0 4px 10px #8198fb30;
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+.send svg {
+  width: 23px;
+  height: 23px;
+}
+.send:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+.send:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.notice {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  background: white;
+  border: 1px solid #dce3fc;
+  border-radius: 16px;
+  box-shadow: 0 8px 35px #8591b533;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  max-width: calc(100% - 32px);
+  width: max-content;
+  line-height: 1.7;
+}
+.notice button {
+  font-size: 22px;
+  color: #8d99b5;
+}
+@media (max-height: 760px) {
+  .intro {
+    padding-top: 8px;
+  }
+  .hero-heading-group {
+    max-width: 500px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *:before,
+  *:after {
+    transition: none !important;
+  }
+}
+
+/* 模块锚点由透视相机逐帧投影，HTML 标签始终面向屏幕。 */
+.mentor-in-scene .mentor {
+  visibility: hidden;
+}
+.planet-button {
+  display: block;
+  width: calc(var(--radius) * 2);
+  height: calc(var(--radius) * 2);
+}
+.planet-face {
+  width: 100%;
+  height: 100%;
+}
+.planet-face svg {
+  width: 36%;
+  height: 36%;
+  max-width: 42px;
+  max-height: 42px;
+}
+.planet-face:after {
+  display: none;
+}
+.planet-info {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 18px);
+  transform: translateY(-50%);
+  opacity: var(--label-opacity, 1);
+  white-space: nowrap;
+  text-shadow: 0 1px 8px #f8faff;
+}
+.label-left .planet-info {
+  left: auto;
+  right: calc(100% + 18px);
+  text-align: right;
+  align-items: flex-end;
+}
+.is-occluded .planet-face svg {
+  visibility: hidden;
+}
+.chat-box {
+  top: 588px;
+  z-index: 5000;
+}
