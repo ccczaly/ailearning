@@ -148,18 +148,6 @@ main {
   background: radial-gradient(ellipse, #dfdfff70, transparent 68%);
   pointer-events: none;
 }
-.universe-canvas {
-  position: absolute;
-  inset: 0;
-  width: 1440px;
-  height: 660px;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.6s;
-}
-.webgl-ready .universe-canvas {
-  opacity: 1;
-}
 .mentor {
   position: absolute;
   left: 534px;
@@ -180,28 +168,13 @@ main {
 }
 .mentor-platform {
   position: absolute;
-  left: -77px;
-  bottom: -20px;
-  width: 526px;
-  height: 94px;
+  left: 60px;
+  right: 60px;
+  bottom: -8px;
+  height: 26px;
   border-radius: 50%;
-  background: radial-gradient(
-    ellipse at center,
-    #b9bce235,
-    #eaeaff40 45%,
-    #fff8 66%,
-    transparent 68%
-  );
-  border: 1px solid #fff9;
-  box-shadow: 0 18px 45px #c2c8f030;
-}
-.mentor-platform:after {
-  content: "";
-  position: absolute;
-  inset: 22px 90px;
-  border-radius: 50%;
-  background: #adb6db28;
-  filter: blur(14px);
+  background: #dcd8f53b;
+  filter: blur(10px);
 }
 .planet-button {
   position: absolute;
@@ -237,23 +210,27 @@ main {
   opacity: 0.22;
   z-index: -1;
 }
-.planet-fallback {
+.planet-surface {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: radial-gradient(
-    circle at 30% 23%,
-    #ffffffec,
-    var(--planet-color) 74%,
-    #ffffffa0
-  );
-  box-shadow:
-    inset -5px -8px 15px #8799c322,
-    inset 3px 4px 10px #fff;
-  transition: opacity 0.4s;
+  background: radial-gradient(circle at 32% 25%,
+    color-mix(in srgb, var(--planet-color) 18%, white) 0%,
+    color-mix(in srgb, var(--planet-color) 48%, white) 48%,
+    color-mix(in srgb, var(--planet-color) 78%, white) 100%);
+  border: 1.5px solid color-mix(in srgb, var(--planet-color) 35%, white);
+  box-shadow: inset 2px 3px 0 #ffffff80, 0 8px 18px color-mix(in srgb, var(--planet-color) 15%, transparent);
 }
-.webgl-ready .planet-fallback {
-  opacity: 0;
+.planet-surface:before {
+  content: "";
+  position: absolute;
+  top: 16%;
+  left: 23%;
+  width: 22%;
+  height: 10%;
+  border-radius: 50%;
+  background: #ffffff80;
+  transform: rotate(-35deg);
 }
 .planet-face svg {
   position: relative;
@@ -397,10 +374,7 @@ main {
   }
 }
 
-/* 模块锚点由透视相机逐帧投影，HTML 标签始终面向屏幕。 */
-.mentor-in-scene .mentor {
-  visibility: hidden;
-}
+/* 固定的插画布局，球体只做轻微漂浮。 */
 .planet-button {
   display: block;
   width: calc(var(--radius) * 2);
@@ -434,10 +408,52 @@ main {
   text-align: right;
   align-items: flex-end;
 }
-.is-occluded .planet-face svg {
-  visibility: hidden;
-}
 .chat-box {
   top: 588px;
   z-index: 5000;
+}
+
+.planet-button {
+  animation: gentle-float var(--float-duration) ease-in-out var(--float-delay) infinite;
+}
+.planet-face {
+  transition: transform 0.3s ease;
+}
+.planet-button:hover .planet-face,
+.planet-button:focus-visible .planet-face {
+  transform: translateY(-3px) scale(1.045);
+}
+@keyframes gentle-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(var(--float-height, -6px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .planet-button { animation: none; }
+}
+
+/* Screen-space parallax preserves the illustration and text proportions. */
+.mentor { z-index: 2; }
+.planet-button {
+  --parallax: 3px;
+  --float-height: -4px;
+  translate: calc(var(--pointer-x, 0) * var(--parallax)) calc(var(--pointer-y, 0) * var(--parallax));
+  transition: translate 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 1;
+}
+.planet-button.is-near {
+  --parallax: 9px;
+  --float-height: -6px;
+  z-index: 3;
+}
+.is-far .planet-surface {
+  background: radial-gradient(circle at 32% 25%,
+    color-mix(in srgb, var(--planet-color) 12%, white),
+    color-mix(in srgb, var(--planet-color) 36%, white) 48%,
+    color-mix(in srgb, var(--planet-color) 58%, white));
+  box-shadow: inset 2px 3px 0 #ffffff80, 0 4px 12px color-mix(in srgb, var(--planet-color) 10%, transparent);
+}
+@media (prefers-reduced-motion: reduce), (hover: none), (pointer: coarse) {
+  .planet-button { translate: none; }
+  .planet-button:hover .planet-face,
+  .planet-button:focus-visible .planet-face { transform: none; }
 }
