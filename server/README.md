@@ -1,8 +1,16 @@
 # LearnAI Java 后端
 
+## 知识阅读（第一版）
+
+启动时 Flyway 自动执行 V3（四张学习业务表）与 V4（LLM 基础预置内容）。登录后点击首页「基础概念」，或访问 `/knowledge/llm-basics`，可以浏览多级目录与五节正文。接口为 `GET /api/knowledge/{slug}`，需要登录，只返回已发布且祖先目录可见的内容。
+
+当前只提供阅读；`user_section_progress` 已建表，尚未接入写入和进度统计。正文先以安全的纯文本段落展示，暂不解析 Markdown 语法。后续内容修改使用新的迁移，不修改已执行的 SQL。
+
+V5 将首页调整为 AI 应用开发方向的八个模块。首页通过需要登录的 `GET /api/learning/modules` 读取已发布模块，按 `sort_order,id` 排序；`entrySlug` 为首个已发布知识点的 slug，无内容则为空。首页不展示进度，只有 LLM 基础目前提供阅读内容。前端 `src/data/modules.ts` 仅保存按模块 code 匹配的星球视觉配置，不再保存业务名称或模拟进度。
+
 基础工程：Java 21、Spring Boot 4.1.1、Maven Wrapper、Spring Web MVC、JDBC、MySQL、Flyway 和 Actuator。
 
-目前提供数据库连接、数据库迁移和健康检查；登录、角色权限、用户表及 MyBatis 尚未接入。此阶段仅用于本地开发。
+已提供数据库迁移、健康检查、Spring Security 登录、Session、CSRF、用户及角色鉴权。首次管理员、安全启动脚本、接口和测试说明见 [登录使用说明](../LOGIN.md)。MyBatis 尚未接入，当前沿用 JDBC。
 
 ## 1. 准备环境
 
@@ -15,7 +23,18 @@
 
 ## 2. 配置并启动（PowerShell）
 
-在仓库根目录打开终端：
+推荐在仓库根目录打开 PowerShell，首次配置：
+
+```powershell
+Copy-Item .\server\.env.example .\server\.env.local
+notepad .\server\.env.local
+```
+
+填写 `DB_PASSWORD`，检查 `JAVA_HOME`、`DB_URL` 和 `DB_USERNAME`。`.env.local` 已被 Git 忽略，请勿提交实际密码。以后在项目根目录运行 `npm run dev:server` 即可，无需重复输入密码，保存后端代码后自动重新编译并重启。只启动一次使用 `npm run start:server`。首次创建网站管理员时单独运行 `.\server\start-local.ps1 -InitializeAdmin`。不要重复复制模板覆盖已有配置。
+
+脚本将配置按字面值读取，不展开变量。可用成对引号包裹值，注释必须单独一行。本地文件优先于环境变量，脚本退出后恢复原环境；未配置密码时仍会提示输入。
+
+也可以在仓库根目录打开终端，手动设置环境变量启动：
 
 ```powershell
 cd server
@@ -27,9 +46,17 @@ $env:DB_URL = 'jdbc:mysql://localhost:3306/ailearning?connectionTimeZone=UTC&cha
 .\mvnw.cmd spring-boot:run
 ```
 
-默认监听 `8080`，可用 `SERVER_PORT` 环境变量覆盖。环境变量只对当前终端及其子进程有效。`.env.example` 仅供参考，Spring Boot 不会自动读取 `.env`。
+默认监听 `8080`，可用 `SERVER_PORT` 环境变量覆盖。环境变量只对当前终端及其子进程有效。Spring Boot 不会自动读取 `.env` 或 `.env.local`；仅 `start-local.ps1` 自动加载 `.env.local`。
 
 数据库不可用、凭据错误或数据库不存在时，启动会失败，以便尽早发现配置问题。不要把实际密码提交到 Git。
+
+### 自动重启说明
+
+`npm run dev:server` 使用 Node 监听 `server/src/main`、`pom.xml`、`.env.local` 和 `start-local.ps1`，保存稳定约一秒后终止本次启动的进程树，再执行 Maven 清理、编译和启动。删除或重命名 Java 文件也能清理旧 class。无需 IDE 自动编译或额外依赖。
+
+编译失败会显示错误，修复并保存后重试；`Ctrl+C` 停止监听及后端。监听不包含 `target` 或测试代码。启动监听前请停止旧后端；监听器不会自动关闭其他进程。重启会丢失内存 Session，需要重新登录。迁移 SQL 应新增版本，不能修改已执行的迁移。
+
+监听器回归验证：在根目录执行 `node --test scripts/dev-server.test.mjs`。
 
 ## 3. 验证
 
@@ -43,7 +70,7 @@ Invoke-RestMethod http://localhost:8080/api/actuator/health
 
 ## 4. 测试与打包
 
-在配置好上述环境变量的终端执行：
+测试使用隔离的进程内 H2，不需要数据库密码。执行：
 
 ```powershell
 .\mvnw.cmd test
@@ -51,7 +78,7 @@ Invoke-RestMethod http://localhost:8080/api/actuator/health
 java -jar target/ailearning-server-0.0.1-SNAPSHOT.jar
 ```
 
-生成的上下文测试会连接真实 MySQL 并执行迁移，请使用专用开发或测试数据库，不能指向生产数据库。
+测试不会连接现有 MySQL；打包后的 jar 启动时需要配置数据库环境变量，并执行尚未应用的迁移。
 
 ## 5. 目录与后续开发
 
@@ -68,6 +95,6 @@ server/
     └── test/java/com/ailearning/server/
 ```
 
-`V1` 仅初始化迁移历史；用户和权限表会在登录功能实施时新增。已经执行的迁移不要修改，后续增加 `V2__描述.sql` 等文件。
+`V1` 仅初始化迁移历史；`V2__users_and_roles.sql` 新增用户、角色及关联表。已经执行的迁移不要修改，后续按版本新增。
 
-前端仍在仓库根目录运行 `npm run dev`，后端独立启动。前端代理与登录页面将在接口接入时配置。后续计划接入 Spring Security、MyBatis、用户与角色模型、服务端会话及登录审计。
+前端在仓库根目录运行 `npm run dev`，后端独立启动，Vite 已配置 `/api` 代理。当前是单实例基础登录版本；完整用户管理、SSO、MFA、密码找回及登录审计属于后续工作。

@@ -1,5 +1,7 @@
 # LearnAI
 
+已接入第一版前后端登录闭环，首次管理员设置、启动和验证方式见 [登录使用说明](LOGIN.md)。首页需登录后访问，场景沿用当前组件实现。
+
 面向 AI 初学者的学习平台，目前为桌面端首页原型。
 
 ## 本地运行
@@ -8,6 +10,18 @@
 npm install
 npm run dev
 ```
+
+## 后端开发
+
+首次在 `server/.env.local` 配置数据库（见 [后端说明](server/README.md)），之后在项目根目录另开终端：
+
+```sh
+npm run dev:server
+```
+
+保存 `server/src/main` 下的 Java、配置、SQL 文件，或修改 `server/pom.xml`、`server/.env.local`、启动脚本后，会自动重新编译并重启后端。连续保存会合并处理，编译失败后修复并保存即可重试。按 `Ctrl+C` 停止监听及它启动的后端进程。
+
+前端继续使用 `npm run dev`。只启动一次、不监听修改时使用 `npm run start:server`。首次切换前先停止之前手动启动的后端，避免端口冲突。自动重启期间接口暂时不可用，内存登录会话会失效，需要重新登录。此启动入口适用于 Windows 开发环境。
 
 ## 构建
 
@@ -18,7 +32,7 @@ npm run preview
 
 技术栈：Vue 3 + Vite + TypeScript + Three.js + GSAP。
 
-- `src/App.vue`：导航和演示消息。
+- `src/App.vue`：路由出口及会话过期处理；`src/components/HomeView.vue`：原首页、真实用户信息和退出入口。
 - `src/components/KnowledgeUniverse.vue`：GSAP 相机控制、三维标签投影、模块入口和输入框。
 - `src/scene/createKnowledgeScene.ts`：透视相机、球体与人物的空间坐标、三维轨道、雾和遮挡。
 - `src/components/ModuleIcon.vue`：统一 SVG 图标。

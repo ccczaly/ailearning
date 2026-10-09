@@ -254,28 +254,6 @@ main {
 .planet-button:hover strong {
   color: var(--planet-ink);
 }
-.planet-count {
-  font-size: 13px;
-  color: #566180;
-  font-variant-numeric: tabular-nums;
-}
-.planet-count > span {
-  color: #969eb6;
-}
-.planet-progress {
-  width: 88px;
-  height: 5px;
-  border-radius: 10px;
-  background: #e5e9f3;
-  overflow: hidden;
-}
-.planet-progress > span {
-  display: block;
-  height: 100%;
-  border-radius: 10px;
-  background: var(--planet-ink);
-  opacity: 0.65;
-}
 .chat-box {
   position: absolute;
   left: 460px;

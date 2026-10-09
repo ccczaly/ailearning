@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref } from "vue";
-import { modules } from "../data/modules";
+import { computed, onMounted, onBeforeUnmount, ref } from "vue";
+import { moduleVisuals } from "../data/modules";
+import type { LearningModule } from '../data/learning';
 import ModuleIcon from "./ModuleIcon.vue";
 import mentorImage from "../assets/xiaobaozi.png";
 
+const props = defineProps<{ modules: LearningModule[] }>();
+const planets = computed(() => props.modules.map((module, index) => ({
+  ...(moduleVisuals.find(visual => visual.code === module.code) ?? moduleVisuals[index % moduleVisuals.length]!),
+  ...module,
+})));
 const emit = defineEmits<{
-  select: [title: string];
+  select: [module: LearningModule];
   send: [message: string];
 }>();
 const shell = ref<HTMLElement>();
@@ -77,8 +83,9 @@ onBeforeUnmount(() => {
         />
       </div>
       <button
-        v-for="(item, index) in modules"
-        :key="item.id"
+        v-for="(item, index) in planets"
+        :key="item.code"
+        :title="item.description ?? item.title"
         class="planet-button"
         :class="{ 'label-left': item.x > 720, 'is-near': item.depth === 'near', 'is-far': item.depth === 'far' }"
         :style="{
@@ -90,25 +97,12 @@ onBeforeUnmount(() => {
           '--float-delay': `${index * -0.7}s`,
           '--float-duration': `${5 + index * 0.3}s`,
         }"
-        @click="emit('select', item.title)"
+        @click="emit('select', item)"
       >
         <span class="planet-face"
           ><span class="planet-surface" /><ModuleIcon :name="item.icon"
         /></span>
-        <span class="planet-info"
-          ><strong>{{ item.title }}</strong
-          ><span class="planet-count"
-            >{{ item.count }} <span>/ {{ item.total }}</span></span
-          ><span
-            class="planet-progress"
-            role="progressbar"
-            :aria-label="item.title + '学习进度'"
-            :aria-valuenow="item.count"
-            :aria-valuemin="0"
-            :aria-valuemax="item.total"
-            ><span
-              :style="{ width: `${(item.count / item.total) * 100}%` }" /></span
-        ></span>
+        <span class="planet-info"><strong>{{ item.title }}</strong></span>
       </button>
       <form class="chat-box" @submit.prevent="send">
         <span class="chat-icon" aria-hidden="true">✧</span
