@@ -2,11 +2,15 @@
 
 ## 知识阅读（第一版）
 
-启动时 Flyway 自动执行 V3（四张学习业务表）与 V4（LLM 基础预置内容）。登录后点击首页「基础概念」，或访问 `/knowledge/llm-basics`，可以浏览多级目录与五节正文。接口为 `GET /api/knowledge/{slug}`，需要登录，只返回已发布且祖先目录可见的内容。
+启动时 Flyway 自动执行未应用的数据库迁移。登录后点击首页「大模型基础」，或访问 `/knowledge/llm-basics`，可以阅读「沿着时间线认识大语言模型」：14 个时间节点、28 节正文，预计阅读与练习 397 分钟。接口为 `GET /api/knowledge/{slug}`，需要登录，只返回已发布且祖先目录可见的内容。
 
-当前只提供阅读；`user_section_progress` 已建表，尚未接入写入和进度统计。正文先以安全的纯文本段落展示，暂不解析 Markdown 语法。后续内容修改使用新的迁移，不修改已执行的 SQL。
+当前只提供阅读；`user_section_progress` 已建表，尚未接入写入和进度统计。正文支持 Markdown 标题、表格、列表、代码块和参考链接，关闭原始 HTML，并兼容中文强调标记。后续内容修改使用新的迁移，不修改已执行的 SQL。
 
-V5 将首页调整为 AI 应用开发方向的八个模块。首页通过需要登录的 `GET /api/learning/modules` 读取已发布模块，按 `sort_order,id` 排序；`entrySlug` 为首个已发布知识点的 slug，无内容则为空。首页不展示进度，只有 LLM 基础目前提供阅读内容。前端 `src/data/modules.ts` 仅保存按模块 code 匹配的星球视觉配置，不再保存业务名称或模拟进度。
+V5 初始化应用开发分类，V6 更新为九个学习模块。首页通过需要登录的 `GET /api/learning/modules` 读取已发布模块，按 `sort_order,id` 排序；`entrySlug` 为首个已发布知识点的 slug，无内容则为空。首页不展示进度，目前「大模型基础」提供阅读内容。前端 `src/data/modules.ts` 仅保存按模块 code 匹配的星球视觉配置。
+
+V7 更新大模型基础课程。正文源文件为 `content/llm-basics.json`，课程中的数值样例均为教学示例，历史节点附原始论文或教材链接。迁移归档旧章节并保留 ID，避免破坏学习记录的外键关联。
+
+在项目根目录执行 `node scripts/generate-llm-course.mjs --check` 检查正文源文件与 V7 一致，执行 `node --test scripts/markdown.test.mjs` 验证排版与不安全输入处理。生成器用于重现 V7；V7 应用后不要修改正文并覆盖该迁移，未来课程修订应新增迁移版本。
 
 基础工程：Java 21、Spring Boot 4.1.1、Maven Wrapper、Spring Web MVC、JDBC、MySQL、Flyway 和 Actuator。
 
