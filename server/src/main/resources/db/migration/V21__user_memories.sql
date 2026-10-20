@@ -1,0 +1,12 @@
+CREATE TABLE user_memories (
+ user_id BIGINT PRIMARY KEY,
+ enabled BOOLEAN NOT NULL DEFAULT TRUE,
+ preferred_name VARCHAR(80) NOT NULL DEFAULT '',
+ technical_background VARCHAR(240) NOT NULL DEFAULT '',
+ learning_goal VARCHAR(240) NOT NULL DEFAULT '',
+ response_preference VARCHAR(240) NOT NULL DEFAULT '',
+ locked_fields INT NOT NULL DEFAULT 0,
+ version BIGINT NOT NULL DEFAULT 0,
+ updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ FOREIGN KEY (user_id) REFERENCES app_users(id) ON DELETE CASCADE
+);

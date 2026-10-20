@@ -1,0 +1,381 @@
+{
+  "slug": "agents",
+  "moduleCode": "agents",
+  "title": "从工具调用到有边界的 Agent",
+  "summary": "理解工作流与 Agent 的区别，实现工具契约、循环预算、状态恢复和人工确认。",
+  "learningObjectives": "设计受限工具；校验调用参数；控制循环与重试；保存状态并设置人工确认；用轨迹检查任务质量。",
+  "chapters": [
+    {
+      "title": "01 · 任务拆解：工作流与工具",
+      "lessons": [
+        {
+          "key": "agent-workflow",
+          "title": "工作流与 Agent：哪些步骤交给模型选择",
+          "minutes": 6,
+          "body": "“查资料后总结”和“根据结果决定下一步”需要不同控制方式。前者可以固定步骤，后者可能让模型选择工具；自主选择越多，运行边界越需要清楚。\n\n## 固定流程与动态决策\n\n工作流由程序预先决定路径，Agent 常让模型结合观察选择下一步。两者可以混合：权限校验与审批固定执行，资料选择交给受限决策。不要因为加了循环就把程序当成能独立承担责任的代理。\n\n本模块用确定性的计划作为模型选择的替身，验证工具边界与状态机；它不声称有真实模型推理。先能追踪“为何调用、调用了什么、何时结束”，再替换决策部分。\n\n~~~flow\n定义目标 | 确定可观察的成功条件\n选择动作 | 在允许工具中决定下一步\n检查结果 | 根据观察继续或停止\n~~~\n\n```python\nworkflow = [\"读取课程资料\", \"检查依据\", \"组织摘要\"]\nfor step in workflow:\n    print(\"执行：\", step)\nprint(\"动态选择只应发生在明确授权的范围内。\")\n```\n\n**本地练习：** 列出一个学习助手任务，分别写成固定流程和可选择工具的版本，找出必须由程序坚持的步骤。\n\n## 留下的启发\n\n**自主选择是设计取舍。** 先明确成功条件和控制边界，再决定是否需要 Agent，而不是把所有流程交给模型。\n\n## 延伸阅读\n\n[ReAct 原始论文](https://arxiv.org/abs/2210.03629)",
+          "questions": [
+            {
+              "id": "agent-workflow-1",
+              "tag": "固定流程与动态决策",
+              "text": "工作流的主要特征是什么？",
+              "options": [
+                "步骤路径主要由程序预先规定",
+                "必然没有工具",
+                "总能自由决定任何动作"
+              ],
+              "answer": 0,
+              "explanation": "固定控制流与动态动作选择是不同设计。"
+            },
+            {
+              "id": "agent-workflow-2",
+              "tag": "固定流程与动态决策",
+              "text": "权限检查适合交给谁？",
+              "options": [
+                "模型随意判断",
+                "可信程序规则",
+                "资料中的指令"
+              ],
+              "answer": 1,
+              "explanation": "权限必须由确定性后端执行。"
+            },
+            {
+              "id": "agent-workflow-3",
+              "tag": "固定流程与动态决策",
+              "text": "配套决策替身证明什么？",
+              "options": [
+                "真实推理能力已验证",
+                "模型永不犯错",
+                "程序边界可被离线检查"
+              ],
+              "answer": 2,
+              "explanation": "替身不等于真实模型评测。"
+            }
+          ]
+        },
+        {
+          "key": "tool-schema",
+          "title": "工具契约：描述能力而不是开放执行器",
+          "minutes": 6,
+          "body": "“帮我算总时长”只需要一个受限的求和工具，不需要给模型任意执行 Python 的能力。工具名称、描述、参数和返回值共同定义模型可选择的接口。\n\n## 窄工具与明确输入\n\n工具 schema 说明参数形状，真正执行前仍要程序校验。求和工具只接受有界整数列表；不要提供 eval、shell 或任意文件路径作为通用捷径。返回值需要稳定字段，让下一步不必猜。\n\n工具描述帮助模型理解用途，却不是访问控制。即使工具注明只读，也要由实现确保没有写入副作用。下面的 schema 是教学契约，不自动调用任何供应商。\n\n~~~flow\n声明用途 | 工具只做一类明确操作\n约定参数 | 类型数量范围写清楚\n返回结果 | 结构稳定且可验证\n~~~\n\n```python\nschema = {\n    \"type\": \"object\",\n    \"properties\": {\"values\": {\"type\": \"array\", \"items\": {\"type\": \"integer\"}, \"maxItems\": 10}},\n    \"required\": [\"values\"], \"additionalProperties\": False,\n}\nprint(schema)\n```\n\n**本地练习：** 为“读取公开课程摘要”设计工具，说明哪些参数由模型提供、哪些身份信息必须由后端补充。\n\n## 留下的启发\n\n**小范围工具比无限执行器容易验证。** 描述、校验和实际实现三者一致，才形成可信的能力边界。\n\n## 延伸阅读\n\n[JSON Schema 对象](https://json-schema.org/understanding-json-schema/reference/object)",
+          "questions": [
+            {
+              "id": "tool-schema-1",
+              "tag": "窄工具与明确输入",
+              "text": "工具 schema 能自动保证安全执行吗？",
+              "options": [
+                "能替代权限",
+                "所有参数天然可信",
+                "不能，后端仍需校验"
+              ],
+              "answer": 2,
+              "explanation": "schema 声明不能代替运行时控制。"
+            },
+            {
+              "id": "tool-schema-2",
+              "tag": "窄工具与明确输入",
+              "text": "计算总时长应优先暴露什么？",
+              "options": [
+                "受限求和工具",
+                "任意 shell",
+                "系统管理员终端"
+              ],
+              "answer": 0,
+              "explanation": "窄接口能限制可产生的行为。"
+            },
+            {
+              "id": "tool-schema-3",
+              "tag": "窄工具与明确输入",
+              "text": "只读工具应由什么保证只读？",
+              "options": [
+                "名称写着只读",
+                "具体实现和权限",
+                "模型承诺"
+              ],
+              "answer": 1,
+              "explanation": "实际实现决定副作用。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "02 · 执行循环：校验与预算",
+      "lessons": [
+        {
+          "key": "tool-dispatch",
+          "title": "工具执行：名称和参数都要验证",
+          "minutes": 6,
+          "body": "模型可能选错工具名，或者把数字列表写成字符串。应用不能因为“这是模型返回的调用”就跳过入口验证。\n\n## 白名单分派与确定性约束\n\n分派器只接受已注册名称。每个工具验证必填字段、额外字段和数值范围，未知名称立即失败；身份与权限由后端上下文决定，不能由参数中的 admin=true 授权。\n\n配套 dispatch 使用 add_minutes 求和，不执行字符串代码。它拒绝布尔值和过多元素，返回结构化结果。工具结果也只是数据，不应被提升成新的系统指令。\n\n~~~flow\n检查名称 | 仅允许已注册工具\n校验参数 | 拒绝错误类型和额外字段\n执行返回 | 输出稳定数据而非任意代码\n~~~\n\n```python\nfrom lab import dispatch\nprint(dispatch(\"add_minutes\", {\"values\": [6, 6, 8]}))\ntry:\n    dispatch(\"run_shell\", {\"command\": \"anything\"})\nexcept ValueError as error:\n    print(\"拒绝：\", error)\n```\n\n**本地练习：** 尝试把 values 换成字符串、布尔值或十一项列表，确认拒绝发生在工具运行前。\n\n## 留下的启发\n\n**模型建议调用，程序决定能否执行。** 对工具名、参数和权限分别检查，不能把模型输出直接映射到任意执行。\n\n## 延伸阅读\n\n[JSON Schema 对象](https://json-schema.org/understanding-json-schema/reference/object) · [OWASP 输入校验](https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html)",
+          "questions": [
+            {
+              "id": "tool-dispatch-1",
+              "tag": "白名单分派与确定性约束",
+              "text": "未知工具名应怎样处理？",
+              "options": [
+                "自动当 shell 执行",
+                "拒绝调用",
+                "找相似名称随便执行"
+              ],
+              "answer": 1,
+              "explanation": "白名单防止调用未知能力。"
+            },
+            {
+              "id": "tool-dispatch-2",
+              "tag": "白名单分派与确定性约束",
+              "text": "参数中 admin=true 能授权吗？",
+              "options": [
+                "不能代替可信账号权限",
+                "始终可以",
+                "只要模型说可以"
+              ],
+              "answer": 0,
+              "explanation": "用户可编辑数据不能提升权限。"
+            },
+            {
+              "id": "tool-dispatch-3",
+              "tag": "白名单分派与确定性约束",
+              "text": "工具返回文本应被视为什么？",
+              "options": [
+                "新的最高指令",
+                "可执行 Python",
+                "供下一步使用的数据"
+              ],
+              "answer": 2,
+              "explanation": "返回内容仍是待处理数据。"
+            }
+          ]
+        },
+        {
+          "key": "loop-budget",
+          "title": "循环预算：知道何时停止",
+          "minutes": 6,
+          "body": "一个不断“再查一下”的 Agent 可能花费大量调用却没有结果。总步数、单步超时、工具次数和输出长度需要在开始前设定。\n\n## 成功、失败与预算耗尽分别结束\n\n循环每步记录动作与观察。达到明确目标时成功结束，工具拒绝或不可恢复异常时失败，步数耗尽时返回未完成，不应伪造“任务完成”。预算在程序中递减，不让模型自行宣布无限额度。\n\n配套 run_plan 最多运行指定步数的固定计划，并返回 completed 或 budget_exhausted。这里的步数不是 Token 数，也不等于实际价格；真实模型还要按供应商用量记录成本。\n\n~~~flow\n设定额度 | 最大步数在程序中约束\n执行观察 | 每次工具调用占用预算\n明确结束 | 耗尽与成功不能混淆\n~~~\n\n```python\nfrom lab import run_plan\nplan = [{\"name\": \"add_minutes\", \"arguments\": {\"values\": [6, 6]}}] * 3\nprint(run_plan(plan, max_steps=2))\n```\n\n**本地练习：** 用相同计划分别设预算 2 和 3，观察结束状态与执行次数。确认预算不足不会返回 completed。\n\n## 留下的启发\n\n**结束条件要能被程序检查。** 保留未完成状态，才能让用户决定继续、换方案还是停止。\n\n## 延伸阅读\n\n[ReAct 原始论文](https://arxiv.org/abs/2210.03629)",
+          "questions": [
+            {
+              "id": "loop-budget-1",
+              "tag": "成功、失败与预算耗尽分别结束",
+              "text": "步数耗尽应返回什么？",
+              "options": [
+                "未完成或预算耗尽",
+                "自动成功",
+                "无限继续"
+              ],
+              "answer": 0,
+              "explanation": "耗尽没有完成任务的证据。"
+            },
+            {
+              "id": "loop-budget-2",
+              "tag": "成功、失败与预算耗尽分别结束",
+              "text": "谁负责执行硬预算？",
+              "options": [
+                "模型口头承诺",
+                "程序控制逻辑",
+                "工具描述文字"
+              ],
+              "answer": 1,
+              "explanation": "预算必须由确定性逻辑约束。"
+            },
+            {
+              "id": "loop-budget-3",
+              "tag": "成功、失败与预算耗尽分别结束",
+              "text": "步数能直接代表供应商费用吗？",
+              "options": [
+                "一律等于费用",
+                "固定一元一步",
+                "不能，还需记录真实用量"
+              ],
+              "answer": 2,
+              "explanation": "模型输入输出量与定价不同。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "03 · 副作用控制：重试与确认",
+      "lessons": [
+        {
+          "key": "idempotency",
+          "title": "重试与幂等：避免重复产生副作用",
+          "minutes": 6,
+          "body": "查询失败可以再查，但创建日程或发消息超时后重试，可能造成重复操作。客户端没收到结果，并不代表服务端没执行。\n\n## 用操作标识识别重复请求\n\n幂等键对应一次业务意图，重复提交应返回已有结果，而不是重新产生副作用。键还要绑定账号和请求内容；同一个键换参数应拒绝，不能悄悄复用另一个结果。\n\n配套 ledger 只在内存演示重复检测，不创建真实日程、不发送消息。它不能在进程崩溃或多实例间保证幂等；生产实现需要持久化、唯一约束和与业务写入一致的事务设计。\n\n~~~flow\n识别意图 | 为操作分配稳定标识\n检查重复 | 同键同内容复用结果\n执行一次 | 写入和记录保持一致\n~~~\n\n```python\nfrom lab import Ledger\nledger = Ledger()\nprint(ledger.create(\"op-1\", {\"title\": \"复习 RAG\"}))\nprint(ledger.create(\"op-1\", {\"title\": \"复习 RAG\"}))\n```\n\n**本地练习：** 重复调用后检查记录数仍为一。再用 op-1 提交另一标题，确认被拒绝，而不是覆盖旧结果。\n\n## 留下的启发\n\n**重试要先考虑副作用。** 内存去重说明思路，跨进程可靠性还要依赖持久化与事务。\n\n## 延伸阅读\n\n[MDN 幂等](https://developer.mozilla.org/en-US/docs/Glossary/Idempotent)",
+          "questions": [
+            {
+              "id": "idempotency-1",
+              "tag": "用操作标识识别重复请求",
+              "text": "超时能证明服务端没执行吗？",
+              "options": [
+                "能",
+                "不能",
+                "只有写操作能证明"
+              ],
+              "answer": 1,
+              "explanation": "结果未到达不等于操作未发生。"
+            },
+            {
+              "id": "idempotency-2",
+              "tag": "用操作标识识别重复请求",
+              "text": "同一个幂等键换参数应怎样处理？",
+              "options": [
+                "拒绝冲突",
+                "悄悄创建第二条",
+                "直接覆盖旧记录"
+              ],
+              "answer": 0,
+              "explanation": "不同意图不能共享同一操作标识。"
+            },
+            {
+              "id": "idempotency-3",
+              "tag": "用操作标识识别重复请求",
+              "text": "内存去重能保证崩溃后不重复吗？",
+              "options": [
+                "可以永久保证",
+                "自动同步所有实例",
+                "不能，需要持久化设计"
+              ],
+              "answer": 2,
+              "explanation": "进程退出会丢失内存记录。"
+            }
+          ]
+        },
+        {
+          "key": "approval-state",
+          "title": "状态与人工确认：把建议和执行分开",
+          "minutes": 6,
+          "body": "Agent 可以建议“安排一次复习”，但不能因为建议合理就替用户确认所有写入。先形成可审阅的草案，再由明确的确认动作推进状态。\n\n## 用状态机约束副作用\n\n草案应包含目标、参数和操作范围。状态从 proposed 到 approved 再到 executed，拒绝跳过审批或重复执行。审批绑定具体内容；修改日期或对象后，旧审批不应自动沿用。\n\n示例只演示内存状态，不提供真实账号审批。多人系统必须核实操作者身份、记录版本并持久化状态，防止另一个用户确认他人的草案。模型说“用户同意了”不是可信审批证据。\n\n~~~flow\n提出草案 | 展示具体操作内容\n确认版本 | 审批绑定相同参数\n执行记录 | 只允许合法状态转换\n~~~\n\n```python\nfrom lab import Proposal\nproposal = Proposal({\"title\": \"复习 RAG\"})\nprint(proposal.state)\nproposal.approve()\nprint(proposal.execute())\n```\n\n**本地练习：** 先不调用 approve 就执行，观察拒绝；确认后执行两次，解释为何第二次不应产生新操作。\n\n## 留下的启发\n\n**建议、授权与执行是三个步骤。** 人工确认应落在具体内容上，并由可信状态与身份检查支撑。\n\n## 延伸阅读\n\n[OWASP 授权指南](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html)",
+          "questions": [
+            {
+              "id": "approval-state-1",
+              "tag": "用状态机约束副作用",
+              "text": "模型声称用户同意能代替审批吗？",
+              "options": [
+                "任何时候可以",
+                "只要语气肯定",
+                "不能"
+              ],
+              "answer": 2,
+              "explanation": "授权证据来自可信用户动作和身份。"
+            },
+            {
+              "id": "approval-state-2",
+              "tag": "用状态机约束副作用",
+              "text": "修改草案关键参数后应怎样做？",
+              "options": [
+                "重新确认新版本",
+                "沿用任何旧审批",
+                "跳过权限"
+              ],
+              "answer": 0,
+              "explanation": "审批应绑定具体内容。"
+            },
+            {
+              "id": "approval-state-3",
+              "tag": "用状态机约束副作用",
+              "text": "合法执行前需要什么状态？",
+              "options": [
+                "未知状态",
+                "明确批准的草案状态",
+                "任意模型输出"
+              ],
+              "answer": 1,
+              "explanation": "状态机限制越过审批的操作。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "04 · 验证 Agent：轨迹与交付",
+      "lessons": [
+        {
+          "key": "agent-trace",
+          "title": "执行轨迹：检查它实际做了什么",
+          "minutes": 6,
+          "body": "最终一句“完成了”不足以证明 Agent 正确行动。保留工具名、参数摘要、结果状态与耗时，可以检查它有没有越权、绕圈或重复写入。\n\n## 结果和路径一起评测\n\n工具调用轨迹应使用稳定的请求标识关联，但日志默认不要写原始秘密或全部私密资料。评价时区分任务是否完成、工具是否适当、是否遵守预算以及副作用是否得到授权。\n\n下例读取配套运行结果的 trace。固定计划只能验证程序规则，真实模型还需在不同问题上检查工具选择；不要用一次正确计划代替泛化评测。\n\n~~~flow\n记录步骤 | 动作与观察一一对应\n核对边界 | 权限预算副作用分别检查\n比较版本 | 保留失败案例与重复场景\n~~~\n\n```python\nfrom lab import run_plan\nresult = run_plan([{ \"name\": \"add_minutes\", \"arguments\": {\"values\": [5, 7]}}])\nfor event in result[\"trace\"]:\n    print(event[\"step\"], event[\"name\"], event[\"result\"])\n```\n\n**本地练习：** 构造未知工具、错误参数和预算不足三种轨迹，比较它们与成功路径的结束状态。\n\n## 留下的启发\n\n**Agent 质量需要路径证据。** 看最终答案，也看它调用了哪些能力、花了多少预算以及是否得到相应授权。\n\n## 延伸阅读\n\n[OpenTelemetry 链路](https://opentelemetry.io/docs/concepts/signals/traces/)",
+          "questions": [
+            {
+              "id": "agent-trace-1",
+              "tag": "结果和路径一起评测",
+              "text": "为什么需要执行轨迹？",
+              "options": [
+                "只为显示更多字",
+                "核对工具和边界行为",
+                "替代所有权限检查"
+              ],
+              "answer": 1,
+              "explanation": "轨迹为真实执行路径提供证据。"
+            },
+            {
+              "id": "agent-trace-2",
+              "tag": "结果和路径一起评测",
+              "text": "日志应默认避免保存什么？",
+              "options": [
+                "状态",
+                "耗时",
+                "原始秘密和私密正文"
+              ],
+              "answer": 2,
+              "explanation": "观测不能成为信息泄露来源。"
+            },
+            {
+              "id": "agent-trace-3",
+              "tag": "结果和路径一起评测",
+              "text": "固定计划通过能证明什么？",
+              "options": [
+                "所测程序规则符合预期",
+                "模型泛化永远正确",
+                "所有任务成功"
+              ],
+              "answer": 0,
+              "explanation": "计划替身不覆盖真实模型选择质量。"
+            }
+          ]
+        },
+        {
+          "key": "agent-project",
+          "title": "受限助理：完成可控的工具循环",
+          "minutes": 6,
+          "body": "把白名单工具、预算、幂等与确认组合起来，得到一个有明确边界的助理原型。它能演示怎样执行，而不是假装已经拥有无限自主能力。\n\n## 用可替换决策保留确定性边界\n\n下载 agents 示例，运行 python lab.py。计划调用求和工具，产生可回看的轨迹；日程部分只生成本地草案，需显式确认才执行内存模拟。没有外部发送、真实账号或付费模型。\n\n将来接入模型，只替换动作建议部分。工具注册、参数校验、预算、状态机与幂等仍由程序负责。验收包括未知工具拒绝、错误输入拒绝、步数耗尽不冒充成功、未确认写入不发生。\n\n~~~flow\n输入任务 | 明确目标和授权范围\n执行受限计划 | 检查参数并扣减预算\n回看结果 | 状态与轨迹可逐步复核\n~~~\n\n```python\nfrom lab import run_plan, Proposal\nresult = run_plan([{ \"name\": \"add_minutes\", \"arguments\": {\"values\": [6, 8]}}])\nprint(result[\"status\"])\ndraft = Proposal({\"title\": \"复习\"})\nprint(\"草案：\", draft.content, draft.state)\n```\n\n**本地练习：** 运行测试后故意删除预算约束，解释可能发生的后果；恢复代码，再检查未确认草案不能执行。\n\n## 留下的启发\n\n**完整 Agent 不等于无限权限。** 越能清楚展示能力、限制与失败，越适合逐步接入真实模型与工具。\n\n## 延伸阅读\n\n[ReAct 原始论文](https://arxiv.org/abs/2210.03629) · [OpenTelemetry 链路](https://opentelemetry.io/docs/concepts/signals/traces/)",
+          "questions": [
+            {
+              "id": "agent-project-1",
+              "tag": "用可替换决策保留确定性边界",
+              "text": "接入模型后哪部分仍由程序负责？",
+              "options": [
+                "权限预算与工具校验",
+                "全部交给模型",
+                "只剩页面颜色"
+              ],
+              "answer": 0,
+              "explanation": "确定性边界不能随决策来源改变。"
+            },
+            {
+              "id": "agent-project-2",
+              "tag": "用可替换决策保留确定性边界",
+              "text": "配套日程功能会真实发送通知吗？",
+              "options": [
+                "会自动发送",
+                "不会，仅内存模拟",
+                "会操作系统日历"
+              ],
+              "answer": 1,
+              "explanation": "示例只验证本地状态和约束。"
+            },
+            {
+              "id": "agent-project-3",
+              "tag": "用可替换决策保留确定性边界",
+              "text": "哪个属于必要失败验收？",
+              "options": [
+                "只看成功动画",
+                "工具越多越好",
+                "未批准草案不能执行"
+              ],
+              "answer": 2,
+              "explanation": "权限与状态失败路径必须覆盖。"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

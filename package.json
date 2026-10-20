@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:all": "node scripts/dev-all.mjs",
     "dev:server": "node scripts/dev-server.mjs",
     "start:server": "powershell -NoProfile -ExecutionPolicy Bypass -File server/start-local.ps1",
     "build": "vue-tsc -b && vite build",

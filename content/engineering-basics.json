@@ -1,0 +1,381 @@
+{
+  "slug": "engineering-basics",
+  "moduleCode": "engineering-basics",
+  "title": "从 Python 脚本到可靠的小程序",
+  "summary": "掌握环境、数据、文件、异常、HTTP、Git 与测试，完成本地课程清单工具。",
+  "learningObjectives": "运行并拆分程序；校验输入；理解 HTTP 和 Git；用测试与配置完成本地工具。",
+  "chapters": [
+    {
+      "title": "01 · 编程起步：环境与数据",
+      "lessons": [
+        {
+          "key": "environment",
+          "title": "运行环境：让同一段代码可复现",
+          "minutes": 6,
+          "body": "同一条命令在另一台电脑上失败，常常不是代码逻辑改变，而是解释器或工作目录不同。先确认程序在哪里、由谁运行，再开始修改。\n\n## 分清解释器、目录和依赖\n\n解释器执行源码，虚拟环境隔离项目的 Python 依赖环境；它不会自动切换目录，也不是操作系统沙箱。普通相对路径从当前工作目录计算。\n\n下载侧栏示例，在模块目录运行 python lab.py。所有示例使用 Python 3.11+ 标准库，无须安装第三方包。下面的检查可以单独保存运行，用于对比两台电脑的环境。\n\n~~~flow\n检查版本 | 明确使用的解释器\n定位目录 | 找到输入文件位置\n运行入口 | 从最小命令验证环境\n~~~\n\n```python\nimport sys\nfrom pathlib import Path\nprint(sys.executable)\nprint(sys.version.split()[0])\nprint(Path.cwd())\n```\n\n**本地练习：** 从不同目录运行脚本，观察工作目录变化。用 python -m venv .venv 建环境后，以其中的 Python 路径运行。\n\n## 留下的启发\n\n**可复现从明确环境开始。** 记录版本、目录和入口，比只记住一条运行命令更有帮助。虚拟环境不提供系统权限隔离。\n\n## 延伸阅读\n\n[Python 官方入门](https://docs.python.org/3/tutorial/)",
+          "questions": [
+            {
+              "id": "environment-1",
+              "tag": "分清解释器、目录和依赖",
+              "text": "虚拟环境主要隔离什么？",
+              "options": [
+                "项目的 Python 依赖环境",
+                "所有系统进程",
+                "其他网络用户"
+              ],
+              "answer": 0,
+              "explanation": "虚拟环境不是操作系统安全边界。"
+            },
+            {
+              "id": "environment-2",
+              "tag": "分清解释器、目录和依赖",
+              "text": "普通相对路径从哪里计算？",
+              "options": [
+                "脚本标题",
+                "当前工作目录",
+                "模型服务器"
+              ],
+              "answer": 1,
+              "explanation": "当前工作目录是相对路径的起点。"
+            },
+            {
+              "id": "environment-3",
+              "tag": "分清解释器、目录和依赖",
+              "text": "复现问题先记录什么？",
+              "options": [
+                "桌面背景",
+                "鼠标型号",
+                "版本和启动命令"
+              ],
+              "answer": 2,
+              "explanation": "环境和入口会直接影响运行。"
+            }
+          ]
+        },
+        {
+          "key": "data-functions",
+          "title": "列表、字典与函数：表达学习记录",
+          "minutes": 6,
+          "body": "标题、时长和完成状态属于同一条记录。把它们放进字典，再用列表组织多条记录，后面的统计规则就容易表达。\n\n## 用数据结构承载业务含义\n\n三个平行列表容易因为删除或排序而错位；记录字典可以让关联字段一起变化。函数把完成时长的规则放在一个可测试位置。\n\n注意字符串 \"false\" 不等于布尔值 False，非空字符串在布尔判断中为真。类型注解帮助阅读，但不会自动校验每个外部输入。先用正确类型表达状态，再在入口检查。\n\n~~~flow\n组织记录 | 关联字段放在一起\n计算结果 | 函数只处理明确规则\n核对样本 | 手算与输出相比较\n~~~\n\n```python\ndef completed_minutes(items):\n    return sum(x[\"minutes\"] for x in items if x[\"done\"])\n\nitems = [{\"title\": \"HTTP\", \"minutes\": 6, \"done\": True},\n         {\"title\": \"Git\", \"minutes\": 6, \"done\": False}]\nprint(completed_minutes(items))\n```\n\n**本地练习：** 新增一条记录，先手算结果。再把 False 改成字符串，观察为什么需要类型校验。\n\n## 留下的启发\n\n**字段表达含义，函数集中规则。** 清楚的数据结构能减少隐含约定，为后面的保存和测试提供边界。\n\n## 延伸阅读\n\n[Python 官方入门](https://docs.python.org/3/tutorial/)",
+          "questions": [
+            {
+              "id": "data-functions-1",
+              "tag": "用数据结构承载业务含义",
+              "text": "多条记录适合怎样保存？",
+              "options": [
+                "三个无关字符串",
+                "记录字典组成的列表",
+                "只存截图"
+              ],
+              "answer": 1,
+              "explanation": "一条记录的字段放在一起避免错位。"
+            },
+            {
+              "id": "data-functions-2",
+              "tag": "用数据结构承载业务含义",
+              "text": "字符串 false 与 False 是否相同？",
+              "options": [
+                "总是相同",
+                "打印时相同",
+                "类型与布尔判断不同"
+              ],
+              "answer": 2,
+              "explanation": "非空字符串在布尔判断中为真。"
+            },
+            {
+              "id": "data-functions-3",
+              "tag": "用数据结构承载业务含义",
+              "text": "提取函数主要为了什么？",
+              "options": [
+                "集中规则并便于验证",
+                "自动消除所有错误",
+                "跳过输入检查"
+              ],
+              "answer": 0,
+              "explanation": "函数给规则提供独立入口。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "02 · 数据边界：文件与异常",
+      "lessons": [
+        {
+          "key": "files-json",
+          "title": "JSON 与文件：保存后还能读回来",
+          "minutes": 6,
+          "body": "进程退出后内存记录就消失了。先用单人 JSON 文件练习持久化：写入、读回、比较，而不是仅确认文件名出现。\n\n## 区分序列化与文件写入\n\n序列化把对象变成 JSON 文本，写文件把文本保存到路径。对象不支持序列化、目录无权限或文件内容被截断，都有不同失败原因。\n\n显式使用 UTF-8 读写，ensure_ascii=False 让中文容易检查。练习用临时目录，避免覆盖自己的文件。重要数据需要并发控制与可靠备份，简单文件读写不等于数据库事务。\n\n~~~flow\n序列化 | 数据转换成文本\n保存文件 | 明确位置与编码\n读取核对 | 确认内容而非只看存在\n~~~\n\n```python\nimport json\nfrom pathlib import Path\nfrom tempfile import TemporaryDirectory\nwith TemporaryDirectory() as folder:\n    path = Path(folder) / \"data.json\"\n    path.write_text(json.dumps([{\"title\": \"Git\"}], ensure_ascii=False), encoding=\"utf-8\")\n    print(json.loads(path.read_text(encoding=\"utf-8\")))\n```\n\n**本地练习：** 将写入内容换成半截 JSON，观察解析失败；再比较合法 JSON 与正确业务字段的区别。\n\n## 留下的启发\n\n**保存闭环以正确读回为准。** 编码、路径、结构与失败处理都要清楚；多人同时写入需要不同的存储设计。\n\n## 延伸阅读\n\n[Python JSON](https://docs.python.org/3/library/json.html) · [pathlib](https://docs.python.org/3/library/pathlib.html)",
+          "questions": [
+            {
+              "id": "files-json-1",
+              "tag": "区分序列化与文件写入",
+              "text": "序列化的作用是什么？",
+              "options": [
+                "把数据变成 JSON 文本",
+                "备份电脑",
+                "解决所有并发"
+              ],
+              "answer": 0,
+              "explanation": "序列化不负责文件权限或并发。"
+            },
+            {
+              "id": "files-json-2",
+              "tag": "区分序列化与文件写入",
+              "text": "怎样减少中文编码差异？",
+              "options": [
+                "删掉中文",
+                "固定 UTF-8 读写",
+                "随机选择编码"
+              ],
+              "answer": 1,
+              "explanation": "明确编码减少环境差异。"
+            },
+            {
+              "id": "files-json-3",
+              "tag": "区分序列化与文件写入",
+              "text": "文件存在是否代表内容正确？",
+              "options": [
+                "一定正确",
+                "名字正确就行",
+                "仍需读回校验"
+              ],
+              "answer": 2,
+              "explanation": "文件可能为空或内容不符合约定。"
+            }
+          ]
+        },
+        {
+          "key": "validation-errors",
+          "title": "输入与异常：让失败可处理",
+          "minutes": 6,
+          "body": "用户可能把时长写成负数、空白或文字。程序应在保存之前拒绝无效数据，并把原因传递到能解释给用户的入口。\n\n## 校验规则与错误边界\n\n定义时长为 1 到 180 的整数，类型与范围都要验证。Python 中 bool 继承 int，严格整数场景用 type(value) is int，避免把 True 当一分钟。\n\n只捕获你能处理的错误。except Exception: pass 会让缺陷伪装成成功；未知错误需要诊断，公共提示则不能包含 Key 或私密请求。\n\n~~~flow\n接收输入 | 外部内容先当待验证数据\n检查约束 | 类型和范围分别检查\n解释失败 | 不保存坏数据\n~~~\n\n```python\ndef minutes(value):\n    if type(value) is not int or not 1 <= value <= 180:\n        raise ValueError(\"时长需为 1 到 180 的整数\")\n    return value\ntry:\n    print(minutes(-3))\nexcept ValueError as error:\n    print(\"未保存：\", error)\n```\n\n**本地练习：** 分别传入 True、0、6、\"6\"。若入口接受字符串，应先转换再校验，不能靠布尔判断猜类型。\n\n## 留下的启发\n\n**失败也是业务结果。** 尽早拒绝坏数据，只在明确的边界恢复，不要静默忽略所有异常。\n\n## 延伸阅读\n\n[Python 异常](https://docs.python.org/3/tutorial/errors.html)",
+          "questions": [
+            {
+              "id": "validation-errors-1",
+              "tag": "校验规则与错误边界",
+              "text": "isinstance(True, int) 的结果是什么？",
+              "options": [
+                "False",
+                "True",
+                "删除输入"
+              ],
+              "answer": 1,
+              "explanation": "bool 在 Python 中继承 int。"
+            },
+            {
+              "id": "validation-errors-2",
+              "tag": "校验规则与错误边界",
+              "text": "什么时候校验输入？",
+              "options": [
+                "保存后",
+                "截图时",
+                "进入业务和存储前"
+              ],
+              "answer": 2,
+              "explanation": "尽早校验防止坏数据传播。"
+            },
+            {
+              "id": "validation-errors-3",
+              "tag": "校验规则与错误边界",
+              "text": "无条件吞掉异常会怎样？",
+              "options": [
+                "可能把失败伪装成成功",
+                "保证准确",
+                "替代测试"
+              ],
+              "answer": 0,
+              "explanation": "调用者失去判断操作结果的依据。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "03 · 协作边界：HTTP 与 Git",
+      "lessons": [
+        {
+          "key": "http-contract",
+          "title": "HTTP：分清请求、状态与数据",
+          "minutes": 6,
+          "body": "浏览器点击保存后，通过接口请求后端，而非直接改数据库。定位问题时，分别检查方法、路径、状态码和正文。\n\n## 请求构造与响应解释\n\nGET 通常读取资源，POST 常提交操作。状态码表达处理结果，JSON 正文承载业务数据；即使 HTTP 200，也仍需检查数据结构和业务含义。401 与 403 常用于认证失败和无权访问，具体契约由服务定义。\n\n下例仅构造请求，不联网。Content-Type 与正文编码应对应。不要打印密码或完整鉴权头，写接口还需要后端权限检查。\n\n~~~flow\n准备请求 | 方法路径正文一致\n解释状态 | 区分认证与处理失败\n校验正文 | 不把有响应等同成功\n~~~\n\n```python\nimport json\nfrom urllib.request import Request\nrequest = Request(\"http://127.0.0.1:8765/lessons\",\n    data=json.dumps({\"title\": \"HTTP\"}).encode(\"utf-8\"),\n    headers={\"Content-Type\": \"application/json\"}, method=\"POST\")\nprint(request.method, request.full_url)\n```\n\n**本地练习：** 在浏览器开发者工具看本平台一次读取请求，指出四个要素。本例不要求另起服务器。\n\n## 留下的启发\n\n**网络成功与业务成功要分别判断。** 明确接口契约，才能知道错误来自连接、身份还是数据。\n\n## 延伸阅读\n\n[MDN HTTP](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Overview) · [urllib](https://docs.python.org/3/library/urllib.request.html)",
+          "questions": [
+            {
+              "id": "http-contract-1",
+              "tag": "请求构造与响应解释",
+              "text": "状态码与正文的关系是什么？",
+              "options": [
+                "同一字段",
+                "表达不同层次的信息",
+                "正文替代鉴权"
+              ],
+              "answer": 1,
+              "explanation": "状态和数据提供不同的信息。"
+            },
+            {
+              "id": "http-contract-2",
+              "tag": "请求构造与响应解释",
+              "text": "构造 Request 就联网吗？",
+              "options": [
+                "不会，还需要发送",
+                "会发送三次",
+                "会建数据库"
+              ],
+              "answer": 0,
+              "explanation": "请求对象只是准备参数。"
+            },
+            {
+              "id": "http-contract-3",
+              "tag": "请求构造与响应解释",
+              "text": "HTTP 200 后应该做什么？",
+              "options": [
+                "执行返回代码",
+                "删除错误处理",
+                "检查数据契约"
+              ],
+              "answer": 2,
+              "explanation": "状态成功不保证内容可用。"
+            }
+          ]
+        },
+        {
+          "key": "git-review",
+          "title": "Git：让修改可以比较和追踪",
+          "minutes": 6,
+          "body": "协作时，先审阅自己改了什么，再记录一组清楚的版本。工作区、暂存区和提交分别对应编辑中、待记录和已记录的状态。\n\n## 从差异到明确提交\n\ngit status 看状态，git diff 看未暂存差异，git diff --cached 看暂存内容。只暂存相关文件，写明这次修改的目的。commit 记录本地历史，push 才传到远端。\n\n下例只打印命令，不执行 Git。练习请在临时仓库进行，先用 .gitignore 排除环境文件和秘密；误提交 Key 后仅删当前文件不够，需要撤销凭据并按团队流程处理历史。\n\n~~~flow\n查看状态 | 限定本次范围\n审阅差异 | 确认记录内容\n保存提交 | 一组改动说明一件事\n~~~\n\n```python\ncommands = [\"git status --short\", \"git diff\",\n            \"git add lesson.py\", \"git diff --cached\",\n            'git commit -m \"Add validation\"']\nprint(\"\\n\".join(commands))\n```\n\n**本地练习：** 在临时仓库比较暂存前后两种 diff；练习到本地提交即可，无须推送任何远端。\n\n## 留下的启发\n\n**先看差异再记录版本。** Git 保存历史，所以尤其不适合存放秘密。一次提交应让别人看懂一件事。\n\n## 延伸阅读\n\n[Git 官方教程](https://git-scm.com/docs/gittutorial)",
+          "questions": [
+            {
+              "id": "git-review-1",
+              "tag": "从差异到明确提交",
+              "text": "git diff --cached 看什么？",
+              "options": [
+                "远端全部内容",
+                "暂存差异",
+                "数据库备份"
+              ],
+              "answer": 1,
+              "explanation": "cached 对应暂存区内容。"
+            },
+            {
+              "id": "git-review-2",
+              "tag": "从差异到明确提交",
+              "text": "commit 就等于 push 吗？",
+              "options": [
+                "相同",
+                "自动公开代码",
+                "不是，push 才发送远端"
+              ],
+              "answer": 2,
+              "explanation": "记录历史和传输提交是不同操作。"
+            },
+            {
+              "id": "git-review-3",
+              "tag": "从差异到明确提交",
+              "text": "误提交 Key 后应怎么办？",
+              "options": [
+                "撤销凭据，删文件不代表失效",
+                "只删文件就安全",
+                "改消息就好"
+              ],
+              "answer": 0,
+              "explanation": "历史仍可能保留秘密。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "04 · 完成项目：测试与配置",
+      "lessons": [
+        {
+          "key": "tests-config",
+          "title": "测试与配置：保存行为约定",
+          "minutes": 6,
+          "body": "规则每次靠手算容易漏掉空清单和非法输入。把重要边界写成测试，将环境差异放入配置，修改时就有稳定的检查方法。\n\n## 可重复验证与配置校验\n\n测试围绕行为：空清单为零，未完成不计时，错误时长被拒绝。标准库 unittest 能独立检查纯函数，不必启动网页或模型。\n\n环境变量读取后通常是字符串，需要显式转换并检查范围。不要把 \"0\" 当 False。可选配置有明确默认值，必要凭据缺失则应失败；示例不读取任何秘密。\n\n~~~flow\n列出行为 | 正常值与边界都要考虑\n运行测试 | 固定输入得到可比较结果\n校验配置 | 环境差异不混进业务规则\n~~~\n\n```python\nimport unittest\ndef total(items):\n    return sum(items)\nclass TotalTests(unittest.TestCase):\n    def test_empty(self):\n        self.assertEqual(total([]), 0)\nunittest.main(argv=[\"lesson\"], exit=False)\n```\n\n**本地练习：** 添加两个时长相加的用例，再故意改错函数，确认测试能发现问题，然后恢复正确规则。\n\n## 留下的启发\n\n**测试记录行为，配置表达环境。** 检查与改动直接相关的规则，避免只检查源码长得是否一样。\n\n## 延伸阅读\n\n[unittest](https://docs.python.org/3/library/unittest.html) · [环境变量](https://docs.python.org/3/library/os.html#os.environ)",
+          "questions": [
+            {
+              "id": "tests-config-1",
+              "tag": "可重复验证与配置校验",
+              "text": "有价值的测试检查什么？",
+              "options": [
+                "行数",
+                "输入下的行为和边界",
+                "主题颜色"
+              ],
+              "answer": 1,
+              "explanation": "行为测试能发现需求回归。"
+            },
+            {
+              "id": "tests-config-2",
+              "tag": "可重复验证与配置校验",
+              "text": "环境变量通常读成什么类型？",
+              "options": [
+                "字符串",
+                "自动布尔值",
+                "业务对象"
+              ],
+              "answer": 0,
+              "explanation": "必须显式转换和校验。"
+            },
+            {
+              "id": "tests-config-3",
+              "tag": "可重复验证与配置校验",
+              "text": "测试失败后怎么办？",
+              "options": [
+                "删测试",
+                "忽略结果",
+                "定位差异并修复相关规则"
+              ],
+              "answer": 2,
+              "explanation": "失败是待解释的证据。"
+            }
+          ]
+        },
+        {
+          "key": "cli-project",
+          "title": "课程清单工具：完成保存与统计闭环",
+          "minutes": 6,
+          "body": "把输入校验、JSON 读回和计时串起来，完成第一个小程序。先验证单人命令行闭环，再进入模型应用的网络开发。\n\n## 入口组织流程，函数表达规则\n\n配套 lab.py 提供 validate_record、completed_minutes 和 roundtrip。入口负责展示，函数负责规则。运行 python lab.py 在临时目录演示，不修改已有文件和数据库；运行 README 中的 unittest 命令检查边界。\n\n如果以后增加真实文件参数，必须写清路径与覆盖行为。当前工具不处理多人并发和账号，这些不是 JSON 文件练习已经解决的问题。\n\n~~~flow\n校验记录 | 调用统一输入规则\n保存读回 | 检查字段与内容\n统计展示 | 结果可用手算验证\n~~~\n\n```python\nfrom lab import validate_record, completed_minutes, roundtrip\nitems = [validate_record({\"title\": \"HTTP\", \"minutes\": 6, \"done\": True})]\nprint(completed_minutes(roundtrip(items)))\n```\n\n**本地练习：** 解压示例后运行 lab.py 和测试，再添加一条未完成记录，检查完成时长是否保持不变。\n\n## 留下的启发\n\n**用完整闭环检验理解。** 能表达数据、处理失败并验证规则后，就可以进一步学习模型请求与交互。\n\n## 延伸阅读\n\n[Python 官方入门](https://docs.python.org/3/tutorial/) · [Git 官方教程](https://git-scm.com/docs/gittutorial)",
+          "questions": [
+            {
+              "id": "cli-project-1",
+              "tag": "入口组织流程，函数表达规则",
+              "text": "入口与函数怎样分工？",
+              "options": [
+                "入口组织流程，函数表达规则",
+                "所有逻辑塞入打印",
+                "函数只读配置"
+              ],
+              "answer": 0,
+              "explanation": "分开职责便于测试和复用。"
+            },
+            {
+              "id": "cli-project-2",
+              "tag": "入口组织流程，函数表达规则",
+              "text": "示例会修改平台数据库吗？",
+              "options": [
+                "会清空数据库",
+                "不会，只在临时目录演示",
+                "自动上传云端"
+              ],
+              "answer": 1,
+              "explanation": "示例只演示本地流程。"
+            },
+            {
+              "id": "cli-project-3",
+              "tag": "入口组织流程，函数表达规则",
+              "text": "新增未完成记录后完成时长怎样变化？",
+              "options": [
+                "必增六分钟",
+                "清零",
+                "不变"
+              ],
+              "answer": 2,
+              "explanation": "只有已完成的记录计入时长。"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

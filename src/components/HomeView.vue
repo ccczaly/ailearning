@@ -4,6 +4,9 @@ import { api } from '../api';
 import type { LearningModule } from '../data/learning';
 import HeroHeading from "./HeroHeading.vue";
 import KnowledgeUniverse from "./KnowledgeUniverse.vue";
+import AiTutor from './AiTutor.vue';
+import MemorySettings from './MemorySettings.vue';
+const settingsOpen = ref(false);
 import { auth, logout } from '../auth';
 import { useRouter } from 'vue-router';
 const router = useRouter();
@@ -12,13 +15,17 @@ async function signOut() {
   catch { notice.value = '退出失败，请检查网络后重试。'; }
 }
 const notice = ref("");
+const tutor = ref<InstanceType<typeof AiTutor>>();
+function askTutor(message?: string) { void tutor.value?.open(message); }
 const modules = ref<LearningModule[]>([]);
 const loading = ref(true);
 const loadError = ref(false);
 async function loadModules() {
   loading.value = true;
   loadError.value = false;
-  try { modules.value = await api<LearningModule[]>('/learning/modules'); }
+  try {
+    modules.value = await api<LearningModule[]>('/learning/modules');
+  }
   catch { loadError.value = true; }
   finally { loading.value = false; }
 }
@@ -33,9 +40,10 @@ onMounted(loadModules);
     <a class="brand" href="./"><span aria-hidden="true">✦</span> LearnAI</a>
     <nav aria-label="主导航">
       <a class="active" href="./" aria-current="page">首页</a
-      ><button @click="notice = '学习偏好设置将在后续开放。'">设置</button>
+      ><button @click="settingsOpen = true">设置</button>
     </nav>
     <div class="header-actions">
+      <button class="home-tutor" @click="askTutor()">✧ 小包子助教</button>
       <span>{{ auth.user?.displayName }}</span>
       <div class="avatar" aria-label="用户头像">{{ auth.user?.displayName.slice(0, 1) }}</div>
       <button @click="signOut">退出登录</button>
@@ -48,18 +56,21 @@ onMounted(loadModules);
       <p>学习模块加载失败，请稍后重试。</p><button @click="loadModules">重新加载</button>
     </div>
     <div v-else-if="!modules.length" class="module-state" role="status">学习模块正在准备中。</div>
-    <KnowledgeUniverse v-else
+    <KnowledgeUniverse v-if="!loading && !loadError && modules.length"
       :modules="modules"
       @select="selectModule"
-      @send="notice = '已收到你的学习想法。AI 导师将在后续接入。'"
+      @send="askTutor"
     />
   </main>
+  <AiTutor ref="tutor" />
+  <MemorySettings v-if="settingsOpen" @close="settingsOpen = false" />
   <div v-if="notice" class="notice" role="status">
     <span>{{ notice }}</span
     ><button aria-label="关闭提示" @click="notice = ''">×</button>
   </div>
 </template>
 <style scoped>
+.home-tutor { padding: 8px 12px; border: 1px solid #dce6fb; border-radius: 10px; background: #edf3ff; color: #5675bf; white-space: nowrap; }
 .module-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #66769a; }
 .module-state button { padding: 10px 20px; border-radius: 10px; background: #e7edff; color: #4e68b4; }
 </style>

@@ -1,6 +1,9 @@
 ﻿param([switch]$InitializeAdmin)
 $ErrorActionPreference = 'Stop'
-$configKeys = @('JAVA_HOME', 'DB_URL', 'DB_USERNAME', 'DB_PASSWORD', 'SERVER_PORT', 'SESSION_COOKIE_SECURE')
+$configKeys = @('JAVA_HOME', 'DB_URL', 'DB_USERNAME', 'DB_PASSWORD', 'SERVER_PORT', 'SESSION_COOKIE_SECURE',
+    'AI_CHAT_PROVIDER', 'DEEPSEEK_API_KEY', 'DEEPSEEK_MODEL', 'AI_MAX_TOKENS',
+    'AI_MAX_CONTEXT_CHARS',
+    'AI_MAX_MESSAGE_CHARS', 'AI_MAX_HISTORY_MESSAGES', 'AI_TIMEOUT_SECONDS')
 $savedEnvironment = @{}
 foreach ($key in ($configKeys + @('BOOTSTRAP_ADMIN_USERNAME', 'BOOTSTRAP_ADMIN_PASSWORD', 'BOOTSTRAP_ADMIN_ENABLED'))) {
     $savedEnvironment[$key] = [Environment]::GetEnvironmentVariable($key, 'Process')
@@ -43,7 +46,9 @@ try {
     Push-Location $PSScriptRoot
     try {
         # Clean stale class files when Java sources are renamed or deleted.
-        & .\mvnw.cmd clean spring-boot:run
+        # Development startup compiles production code only. Run tests separately
+        # with mvnw.cmd test, so in-progress test edits cannot take down the app.
+        & .\mvnw.cmd clean spring-boot:run '-Dmaven.test.skip=true'
         $backendExitCode = $LASTEXITCODE
     } finally { Pop-Location }
 } finally {

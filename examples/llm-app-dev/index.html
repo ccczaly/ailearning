@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>我的学习助手 · Python 本地示例</title>
+<style>
+body{font:16px/1.7 system-ui;background:#f4f7fc;color:#263c60;margin:0;padding:40px 20px}main{max-width:760px;margin:auto}h1{font-size:28px}p{color:#65748d}label{display:block;margin:24px 0 8px}textarea{box-sizing:border-box;width:100%;min-height:100px;padding:14px;font:inherit;border:1px solid #c7d4e7;border-radius:12px}button{font:inherit;padding:9px 18px;border:1px solid #ced8e9;background:white;color:#345381;border-radius:10px;cursor:pointer}button:disabled{opacity:.5;cursor:default}button:first-child{background:#3868c8;color:white;border-color:#3868c8}.actions{display:flex;gap:10px;margin:12px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;background:white;border:1px solid #dfe7f1;border-radius:14px;padding:24px;min-height:120px}#status{font-size:14px;min-height:24px}
+</style>
+<main>
+  <h1>我的学习助手</h1>
+  <p>Python 本地学习示例。默认模拟回答；历史仅保存在当前页面，刷新或新对话后清空。</p>
+  <form id="form">
+    <label for="question">你想了解什么？</label>
+    <textarea id="question" maxlength="1000" required placeholder="例如：用一个例子解释上下文窗口。"></textarea>
+    <div class="actions"><button id="send">发送</button><button id="stop" type="button" disabled>停止</button><button id="reset" type="button">新对话</button></div>
+  </form>
+  <div id="status" role="status">准备就绪</div>
+  <pre id="answer" aria-label="助手回答">回答会显示在这里。</pre>
+</main>
+<script type="module">
+const form = document.querySelector('#form'), question = document.querySelector('#question');
+const send = document.querySelector('#send'), stop = document.querySelector('#stop');
+const status = document.querySelector('#status'), answer = document.querySelector('#answer');
+let history = [], requestId = 0, controller;
+function idle() { send.disabled = false; stop.disabled = true; }
+function cancel() {
+  requestId++;
+  controller?.abort();
+  controller = undefined;
+  idle();
+}
+stop.onclick = () => { cancel(); status.textContent = '已停止 · 回答未完成，未加入历史。'; };
+document.querySelector('#reset').onclick = () => {
+  cancel(); history = []; answer.textContent = '回答会显示在这里。';
+  status.textContent = '已开始新对话';
+};
+form.onsubmit = async event => {
+  event.preventDefault();
+  const text = question.value.trim();
+  if (!text || send.disabled) return;
+  const id = ++requestId;
+  const active = new AbortController(); controller = active;
+  send.disabled = true; stop.disabled = false; answer.textContent = '';
+  status.textContent = '正在生成…';
+  let reader, done = false;
+  try {
+    const response = await fetch('/chat', { method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message: text, history: history.slice(-4)}), signal: active.signal });
+    if (!response.ok || !response.body) throw Error('请求失败，请检查后端与输入。');
+    reader = response.body.getReader();
+    const decoder = new TextDecoder(); let buffer = '';
+    while (true) {
+      const chunk = await reader.read();
+      if (id !== requestId) return;
+      buffer += decoder.decode(chunk.value, {stream: !chunk.done});
+      let end;
+      while ((end = buffer.indexOf('\n\n')) >= 0) {
+        const block = buffer.slice(0, end); buffer = buffer.slice(end + 2);
+        const lines = block.split('\n');
+        const kind = lines.find(line => line.startsWith('event: '))?.slice(7);
+        const data = JSON.parse(lines.filter(line => line.startsWith('data: ')).map(line => line.slice(6)).join('\n'));
+        if (kind === 'delta') answer.textContent += data.text;
+        if (kind === 'error') throw Error(data.message);
+        if (kind === 'done') done = true;
+      }
+      if (chunk.done) break;
+    }
+    if (!done || !answer.textContent.trim()) throw Error('连接中断，回答未完成。');
+    history.push({role:'user',content:text}, {role:'assistant',content:answer.textContent});
+    history = history.slice(-4);
+    status.textContent = '回答完成 · 已加入本次会话';
+  } catch (error) {
+    if (id === requestId) status.textContent = error.name === 'AbortError' ? '已停止 · 回答未完成' : `${error.message} · 未加入历史`;
+  } finally {
+    await reader?.cancel().catch(() => {});
+    if (id === requestId) { controller = undefined; idle(); }
+  }
+};
+</script>
+</html>

@@ -93,7 +93,7 @@ npm run build
 ```powershell
 # 终端一：server 目录
 $env:JAVA_HOME = 'D:\Java'
-.\mvnw.cmd spring-boot:test-run '-Dspring-boot.test-run.main-class=com.ailearning.server.BrowserTestApplication'
+.\mvnw.cmd spring-boot:test-run '-Dspring-boot.run.main-class=com.ailearning.server.BrowserTestApplication'
 # 终端二：仓库根目录
 $env:API_PROXY_TARGET = 'http://127.0.0.1:18080'
 npm run dev -- --host 127.0.0.1 --port 15173 --strictPort

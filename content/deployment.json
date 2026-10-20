@@ -1,0 +1,381 @@
+{
+  "slug": "deployment",
+  "moduleCode": "deployment",
+  "title": "从本地程序到可恢复的服务",
+  "summary": "理解进程与配置、镜像与网络、持久化与迁移、健康检查与发布回滚，完成部署验收计划。",
+  "learningObjectives": "明确进程和配置边界；阅读 Dockerfile 与网络映射；设计备份和迁移；区分存活与就绪；验证发布与回滚。",
+  "chapters": [
+    {
+      "title": "01 · 运行基础：进程与配置",
+      "lessons": [
+        {
+          "key": "process-config",
+          "title": "进程与环境：服务怎样启动和停止",
+          "minutes": 6,
+          "body": "双击脚本能运行，不代表服务已经能稳定交付。启动目录、解释器、配置、退出码和进程归属，都影响服务能否被正确管理。\n\n## 入口、配置与生命周期\n\n进程只继承启动时的环境，之后修改终端变量不会自动更新已运行服务。配置应在启动时校验，缺少必需项清楚失败。正常退出与错误退出要有可识别的状态，停止时释放连接和后台任务。\n\n下面只检查公开的端口配置，不启动服务。真实托管可使用服务管理器或容器，避免依赖一个无人看管的终端。不要因为某个端口被占用就杀掉所有 Java 或 Python 进程。\n\n~~~flow\n读取配置 | 启动时校验必要约束\n运行服务 | 明确入口与拥有的进程\n停止清理 | 释放自己创建的资源\n~~~\n\n```python\nimport os\nport = int(os.environ.get(\"APP_PORT\", \"8765\"))\nif not 1 <= port <= 65535:\n    raise ValueError(\"端口无效\")\nprint({\"port\": port, \"config_loaded_at\": \"process_start\"})\n```\n\n**本地练习：** 修改环境变量后说明为何需要重启进程。列出本平台前后端各自的启动入口与停止方式。\n\n## 留下的启发\n\n**进程管理要清楚归属和生命周期。** 配置、状态和清理都应可检查，不靠批量结束无关进程解决问题。\n\n## 延伸阅读\n\n[Python 环境变量](https://docs.python.org/3/library/os.html#os.environ) · [Python subprocess](https://docs.python.org/3/library/subprocess.html)",
+          "questions": [
+            {
+              "id": "process-config-1",
+              "tag": "入口、配置与生命周期",
+              "text": "修改终端变量会自动改变已运行服务吗？",
+              "options": [
+                "总会",
+                "通常不会，需要按配置机制重载或重启",
+                "等同训练模型"
+              ],
+              "answer": 1,
+              "explanation": "子进程环境在启动时继承。"
+            },
+            {
+              "id": "process-config-2",
+              "tag": "入口、配置与生命周期",
+              "text": "端口被占用应先做什么？",
+              "options": [
+                "查明进程归属",
+                "结束所有 Java",
+                "清空数据库"
+              ],
+              "answer": 0,
+              "explanation": "应确认具体占用与授权范围。"
+            },
+            {
+              "id": "process-config-3",
+              "tag": "入口、配置与生命周期",
+              "text": "服务停止需要注意什么？",
+              "options": [
+                "只隐藏窗口",
+                "保留所有后台任务",
+                "清理自己创建的连接与进程"
+              ],
+              "answer": 2,
+              "explanation": "生命周期结束需要资源释放。"
+            }
+          ]
+        },
+        {
+          "key": "secret-config",
+          "title": "配置与秘密：镜像里不放 Key",
+          "minutes": 6,
+          "body": "同一个版本可能部署到开发、测试和生产环境。代码版本应该相同，环境配置分别注入；秘密更不能因为打包方便就写进镜像。\n\n## 构建材料与运行配置分开\n\n公开默认值可以随代码记录，密码和 Key 通过环境或秘密管理设施按权限注入。环境变量也不等于加密，进程与运维访问仍需限制。不要在日志里打印完整配置。\n\nDocker 构建时的秘密应使用合适的 secret mount；ARG、ENV 或 COPY 可能把秘密留在构建过程和镜像中。配套 Dockerfile 没有秘密，.dockerignore 排除 .env、虚拟环境和版本历史；这仍不是完整的生产凭据管理方案。\n\n~~~flow\n分类配置 | 区分公开默认值和秘密\n按需注入 | 不把凭据烘焙进镜像\n限制暴露 | 日志与构建上下文都检查\n~~~\n\n```python\npublic_config = {\"port\": 8765, \"mode\": \"demo\"}\nsecret_names = [\"DB_PASSWORD\", \"DEEPSEEK_API_KEY\"]\nprint(\"公开配置：\", public_config)\nprint(\"所需秘密名称：\", secret_names)\n```\n\n**本地练习：** 检查示例 Dockerfile 和 .dockerignore，指出为什么复制整个仓库到镜像前要审阅上下文。不要打印真实变量值。\n\n## 留下的启发\n\n**秘密要独立管理，配置要可审计。** 变量名称可以说明需求，实际值不应进入公开构建产物和日志。\n\n## 延伸阅读\n\n[Docker 构建秘密](https://docs.docker.com/build/building/secrets/) · [Docker 构建变量](https://docs.docker.com/build/building/variables/)",
+          "questions": [
+            {
+              "id": "secret-config-1",
+              "tag": "构建材料与运行配置分开",
+              "text": "构建 ARG 适合直接保存 Key 吗？",
+              "options": [
+                "适合",
+                "只要名字短就适合",
+                "不适合，应采用秘密注入机制"
+              ],
+              "answer": 2,
+              "explanation": "构建变量不应被当作秘密存储。"
+            },
+            {
+              "id": "secret-config-2",
+              "tag": "构建材料与运行配置分开",
+              "text": "环境变量是否自动等于加密？",
+              "options": [
+                "不是，还需访问控制",
+                "当然是",
+                "只对 Python 是"
+              ],
+              "answer": 0,
+              "explanation": "环境注入仍有运维与进程访问边界。"
+            },
+            {
+              "id": "secret-config-3",
+              "tag": "构建材料与运行配置分开",
+              "text": "日志可以记录什么？",
+              "options": [
+                "全部秘密值",
+                "必要的非秘密配置与变量名",
+                "完整鉴权头"
+              ],
+              "answer": 1,
+              "explanation": "诊断应限制在必要的非秘密信息。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "02 · 打包网络：镜像与端口",
+      "lessons": [
+        {
+          "key": "container-image",
+          "title": "镜像与容器：把运行材料打包",
+          "minutes": 6,
+          "body": "镜像描述运行所需文件与配置，容器是用该镜像启动的实例。停止一个容器不会修改镜像，却可能让未持久化数据随容器删除而丢失。\n\n## 可复现构建与受限运行\n\nDockerfile 选择基础镜像、复制文件、设置工作目录与启动命令。生产依赖应固定并跟踪更新，镜像标签可移动，发布时还应保存不可变摘要。只复制运行所需文件，采用非 root 用户和合适权限。\n\n配套 Dockerfile 用于阅读和可选本地构建，本文不自动安装 Docker、拉镜像或发布服务。它运行一个本地教学探针，不包含当前 LearnAI 的完整生产部署。\n\n~~~flow\n准备材料 | 仅复制必要文件\n构建镜像 | 记录版本与依赖\n运行实例 | 限制用户和资源范围\n~~~\n\n```python\ndockerfile_lines = [\n    \"FROM python:3.11-slim\", \"WORKDIR /app\",\n    \"COPY service.py /app/service.py\",\n    \"USER 10001\", 'CMD [\"python\", \"service.py\"]',\n]\nprint(\"\\n\".join(dockerfile_lines))\n```\n\n**本地练习：** 阅读下载包中的实际 Dockerfile，指出哪个步骤决定运行用户，哪个字段只是声明端口。是否构建由你在本地决定。\n\n## 留下的启发\n\n**镜像是材料版本，容器是运行实例。** 发布需要知道实际运行哪个不可变版本，而不仅是一个可移动标签。\n\n## 延伸阅读\n\n[Dockerfile 官方说明](https://docs.docker.com/build/concepts/dockerfile/)",
+          "questions": [
+            {
+              "id": "container-image-1",
+              "tag": "可复现构建与受限运行",
+              "text": "镜像与容器的区别是什么？",
+              "options": [
+                "完全相同",
+                "镜像是运行材料，容器是实例",
+                "容器自动备份所有数据"
+              ],
+              "answer": 1,
+              "explanation": "容器由镜像启动，运行状态独立。"
+            },
+            {
+              "id": "container-image-2",
+              "tag": "可复现构建与受限运行",
+              "text": "只记 latest 标签能稳定复现版本吗？",
+              "options": [
+                "总能",
+                "标签不能变化",
+                "不能，应记录实际摘要或固定版本"
+              ],
+              "answer": 2,
+              "explanation": "可移动标签不能唯一保证材料不变。"
+            },
+            {
+              "id": "container-image-3",
+              "tag": "可复现构建与受限运行",
+              "text": "运行用户为什么应受限？",
+              "options": [
+                "减少不必要权限",
+                "保证模型永不出错",
+                "自动加速所有请求"
+              ],
+              "answer": 0,
+              "explanation": "最小权限限制进程能影响的范围。"
+            }
+          ]
+        },
+        {
+          "key": "network-proxy",
+          "title": "网络与反向代理：弄清请求经过哪里",
+          "minutes": 6,
+          "body": "浏览器访问前端，前端将 /api 请求交给后端，后端再访问数据库或模型。每一跳的主机名与端口都要在自己的网络环境里解释。\n\n## 本机地址、容器网络与公开入口\n\n容器内 localhost 指向容器自身，不是宿主机或另一个容器。端口映射决定宿主入口，EXPOSE 只是镜像声明，不自动公开端口。公开服务还需反向代理、TLS 与合适的访问控制。\n\n同源代理可以简化浏览器接口路径，但不会自动完成所有认证与 CSRF 防护。示例给出请求链路，不修改本机防火墙，不绑定公网地址；本地探针默认只绑定回环地址。\n\n~~~flow\n浏览器入口 | 明确公开域名与协议\n代理转发 | 将 API 路径交给后端\n内部依赖 | 使用对应网络可解析地址\n~~~\n\n```python\nroutes = {\"browser\": \"https://learning.example/\",\n          \"api\": \"/api -> backend:8080\",\n          \"database\": \"mysql:3306 (internal)\"}\nprint(routes)\n```\n\n**本地练习：** 画出本机开发和容器部署的两份请求链路，标出 localhost 在每个位置分别指向谁。\n\n## 留下的启发\n\n**网络地址需要站在当前进程的位置理解。** 公开入口与内部依赖分开，才能正确限制访问并排查连接问题。\n\n## 延伸阅读\n\n[Docker 网络概览](https://docs.docker.com/engine/network/) · [Dockerfile EXPOSE](https://docs.docker.com/reference/dockerfile/#expose)",
+          "questions": [
+            {
+              "id": "network-proxy-1",
+              "tag": "本机地址、容器网络与公开入口",
+              "text": "容器内 localhost 通常指向哪里？",
+              "options": [
+                "容器自身",
+                "所有容器共享数据库",
+                "任意宿主服务"
+              ],
+              "answer": 0,
+              "explanation": "每个网络命名空间都有自己的回环地址。"
+            },
+            {
+              "id": "network-proxy-2",
+              "tag": "本机地址、容器网络与公开入口",
+              "text": "EXPOSE 是否自动发布端口？",
+              "options": [
+                "是",
+                "不是，它是声明",
+                "自动修改防火墙"
+              ],
+              "answer": 1,
+              "explanation": "发布端口需要运行配置。"
+            },
+            {
+              "id": "network-proxy-3",
+              "tag": "本机地址、容器网络与公开入口",
+              "text": "同源代理是否替代后端鉴权？",
+              "options": [
+                "总能",
+                "只有 HTTPS 能",
+                "不能"
+              ],
+              "answer": 2,
+              "explanation": "网络路径简化不等于权限规则完成。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "03 · 保存数据：持久化与迁移",
+      "lessons": [
+        {
+          "key": "data-backup",
+          "title": "持久化与备份：删除实例后数据还在吗",
+          "minutes": 6,
+          "body": "课程与学习记录不能只留在容器临时文件层。数据要有明确的持久化位置，备份也必须实际验证能恢复。\n\n## 存储、备份与恢复分别验收\n\n持久化卷保留运行数据，备份是某个时间点的可恢复副本。二者不是同义词：磁盘损坏或误操作可能同时影响当前数据，因此需要独立备份与访问控制。\n\n配套使用临时目录中的 SQLite backup API 演示副本恢复；这不等于已配置本项目 MySQL 的备份。实际系统还要定义允许丢失多久的数据、多久恢复，保护备份凭据，并定期演练恢复。\n\n~~~flow\n明确存储 | 数据与实例生命周期分开\n产生副本 | 在合适位置保存恢复点\n验证恢复 | 真正读回关键记录\n~~~\n\n```python\nfrom lab import backup_demo\nprint(backup_demo())\n```\n\n**本地练习：** 运行示例核对恢复后的课程行数；再为真实应用写出恢复时间与数据丢失范围的目标，不执行生产备份操作。\n\n## 留下的启发\n\n**备份的价值以可恢复为准。** 有一个文件不代表恢复成功，持久化和备份都需要明确范围与演练。\n\n## 延伸阅读\n\n[Python SQLite backup](https://docs.python.org/3/library/sqlite3.html#sqlite3.Connection.backup)",
+          "questions": [
+            {
+              "id": "data-backup-1",
+              "tag": "存储、备份与恢复分别验收",
+              "text": "持久化卷和备份是否相同？",
+              "options": [
+                "完全相同",
+                "不是，职责不同",
+                "只看文件大小"
+              ],
+              "answer": 1,
+              "explanation": "持久化保留运行数据，备份提供恢复点。"
+            },
+            {
+              "id": "data-backup-2",
+              "tag": "存储、备份与恢复分别验收",
+              "text": "怎样判断备份可用？",
+              "options": [
+                "只看文件存在",
+                "只看名字",
+                "实际恢复并核对关键数据"
+              ],
+              "answer": 2,
+              "explanation": "恢复演练能揭示副本与流程问题。"
+            },
+            {
+              "id": "data-backup-3",
+              "tag": "存储、备份与恢复分别验收",
+              "text": "SQLite 示例能证明 MySQL 备份已配置吗？",
+              "options": [
+                "不能",
+                "能自动证明",
+                "只要行数相同就能"
+              ],
+              "answer": 0,
+              "explanation": "不同数据库的运维能力需要独立配置。"
+            }
+          ]
+        },
+        {
+          "key": "schema-migration",
+          "title": "数据库迁移：代码回退不等于数据回退",
+          "minutes": 6,
+          "body": "新版本加了字段，旧代码是否还能运行？迁移需要与应用发布协调，不能假设回滚代码就会自动撤销数据库变化。\n\n## 先兼容扩展，再考虑收缩\n\n新增兼容字段、切换读写、确认旧版本不再依赖后再删除，是常见的逐步演进思路。已执行迁移应保持不可变，通过新版本修订，不去改历史脚本造成校验不一致。\n\n配套只在临时 SQLite 中演示新增带默认值的列，确认旧记录仍可读。真实 MySQL 迁移的锁、执行耗时和 DDL 原子性需按版本与语句验证；危险删除前必须确认数据范围与恢复方案。\n\n~~~flow\n扩展结构 | 优先采用兼容变更\n切换应用 | 新旧读写路径可共存\n收缩清理 | 确认依赖消失再删除\n~~~\n\n```python\nfrom lab import migration_demo\nprint(migration_demo())\n```\n\n**本地练习：** 说明“加一个有默认值的列”与“立刻删除旧列”对旧代码有什么不同。不要修改本项目已执行的迁移。\n\n## 留下的启发\n\n**迁移是版本兼容设计。** 代码和数据有不同生命周期，回滚计划必须分别考虑。\n\n## 延伸阅读\n\n[Flyway 迁移概念](https://documentation.red-gate.com/flyway/flyway-concepts/migrations)",
+          "questions": [
+            {
+              "id": "schema-migration-1",
+              "tag": "先兼容扩展，再考虑收缩",
+              "text": "已执行迁移通常如何修订？",
+              "options": [
+                "新增迁移版本",
+                "直接覆盖原脚本",
+                "删除校验记录"
+              ],
+              "answer": 0,
+              "explanation": "保留历史使不同环境的演进可追溯。"
+            },
+            {
+              "id": "schema-migration-2",
+              "tag": "先兼容扩展，再考虑收缩",
+              "text": "回退代码是否自动恢复数据库结构？",
+              "options": [
+                "一定恢复",
+                "不会自动恢复",
+                "只在周末恢复"
+              ],
+              "answer": 1,
+              "explanation": "数据演进需要独立兼容与恢复设计。"
+            },
+            {
+              "id": "schema-migration-3",
+              "tag": "先兼容扩展，再考虑收缩",
+              "text": "删除旧列前应先确认什么？",
+              "options": [
+                "页面颜色",
+                "模型名称",
+                "依赖与数据范围以及恢复计划"
+              ],
+              "answer": 2,
+              "explanation": "收缩变更可能破坏旧代码和数据。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "04 · 发布运行：健康与回滚",
+      "lessons": [
+        {
+          "key": "health-release",
+          "title": "健康检查：活着与能接流量不同",
+          "minutes": 6,
+          "body": "进程还在运行，数据库却断开了，这时服务可能不该接收新请求。健康检查需要区分自身存活、启动完成与业务就绪。\n\n## 用不同信号管理不同动作\n\n存活检查判断进程是否需要重启；就绪检查判断是否能接新流量。把所有外部依赖抖动都当存活失败，可能形成反复重启。启动阶段还要考虑迁移与缓存准备，避免过早接流量。\n\n示例 readiness 按给定数据库状态返回明确结果，service.py 提供本机 /live 和 /ready 探针。它没有连接当前 MySQL，不代表真实依赖健康；生产检查还要限制输出，避免泄露连接详情。\n\n~~~flow\n检测存活 | 进程是否正常响应\n检测就绪 | 必需依赖能否满足请求\n控制流量 | 未就绪实例不接新请求\n~~~\n\n```python\nfrom lab import readiness\nprint(readiness(database_ok=True))\nprint(readiness(database_ok=False))\n```\n\n**本地练习：** 解释数据库短暂不可用时为什么可能需要摘流量，而不是立即反复重启整个服务。\n\n## 留下的启发\n\n**健康信号必须对应正确动作。** 区分重启和摘流量，避免检测机制反过来放大故障。\n\n## 延伸阅读\n\n[Kubernetes 探针](https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/)",
+          "questions": [
+            {
+              "id": "health-release-1",
+              "tag": "用不同信号管理不同动作",
+              "text": "就绪检查主要决定什么？",
+              "options": [
+                "能否接收新流量",
+                "用户名长度",
+                "模型训练速度"
+              ],
+              "answer": 0,
+              "explanation": "就绪信号用于流量管理。"
+            },
+            {
+              "id": "health-release-2",
+              "tag": "用不同信号管理不同动作",
+              "text": "把外部依赖抖动都当存活失败可能怎样？",
+              "options": [
+                "自动消除故障",
+                "引发反复重启",
+                "保证永不超时"
+              ],
+              "answer": 1,
+              "explanation": "重启动作可能放大依赖故障。"
+            },
+            {
+              "id": "health-release-3",
+              "tag": "用不同信号管理不同动作",
+              "text": "示例 readiness 能证明真实 MySQL 健康吗？",
+              "options": [
+                "能",
+                "只看输出 UP",
+                "不能，输入是教学给定状态"
+              ],
+              "answer": 2,
+              "explanation": "模拟状态不等于真实依赖探测。"
+            }
+          ]
+        },
+        {
+          "key": "deployment-project",
+          "title": "发布与回滚：完成一次可恢复的演练",
+          "minutes": 6,
+          "body": "发布不止是“启动成功”。需要确认版本、探针、迁移、关键路径和退回方式，并在失败时知道哪些数据不能靠回退镜像恢复。\n\n## 版本清单与回滚条件\n\n下载 deployment 示例，python lab.py 输出配置检查、SQLite 恢复、兼容迁移和模拟就绪结果；可选运行 python service.py 只在本机查看探针。Dockerfile 用于阅读与可选本地构建，不自动部署。\n\n发布清单包含实际镜像摘要、配置版本、迁移版本、健康与核心流程。预先定义停止发布的条件；回滚前核对旧代码与新结构兼容。保留证据，不把未执行的容器和云环境操作写成成功。\n\n~~~flow\n准备发布 | 材料配置迁移版本可核对\n验证服务 | 探针与关键路径分别检查\n按条件回退 | 数据兼容与恢复方案明确\n~~~\n\n```python\nfrom lab import release_gate\nprint(release_gate(tests_ok=True, ready=True, backup_verified=True))\nprint(release_gate(tests_ok=True, ready=False, backup_verified=True))\n```\n\n**本地练习：** 先运行离线测试，再按 README 手动请求本地探针。为未就绪和迁移不兼容各写一条发布停止条件。\n\n## 留下的启发\n\n**能运行和能恢复都需要证据。** 明确版本、依赖、数据与退出条件，才算完成可维护服务的交付闭环。\n\n## 延伸阅读\n\n[Dockerfile 官方说明](https://docs.docker.com/build/concepts/dockerfile/) · [Kubernetes 部署](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)",
+          "questions": [
+            {
+              "id": "deployment-project-1",
+              "tag": "版本清单与回滚条件",
+              "text": "发布通过至少要检查什么？",
+              "options": [
+                "只有进程存在",
+                "版本、关键路径与必要就绪条件",
+                "只有截图"
+              ],
+              "answer": 1,
+              "explanation": "启动成功不代表所有交付条件满足。"
+            },
+            {
+              "id": "deployment-project-2",
+              "tag": "版本清单与回滚条件",
+              "text": "回滚镜像前需要核对什么？",
+              "options": [
+                "旧代码与当前数据结构兼容性",
+                "鼠标速度",
+                "文案字数"
+              ],
+              "answer": 0,
+              "explanation": "数据结构可能已被新迁移改变。"
+            },
+            {
+              "id": "deployment-project-3",
+              "tag": "版本清单与回滚条件",
+              "text": "没有执行云部署时怎样报告？",
+              "options": [
+                "声称云端已通过",
+                "隐去所有限制",
+                "明确只完成本地或离线验证"
+              ],
+              "answer": 2,
+              "explanation": "验证结论应匹配实际执行范围。"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
