@@ -68,11 +68,12 @@ CSRF 使用 Spring Security 默认 Session token 和遮罩机制。登录成功�
 - BCrypt 成本 12；数据库只存密码哈希。
 - Session Cookie 为 HttpOnly、SameSite=Lax、Path=/；默认允许本地 HTTP。
 - 上线必须使用 HTTPS，并设置 `SESSION_COOKIE_SECURE=true`；前端与 `/api` 通过同源反向代理提供。前端路由需要配置回退到 `index.html`。
-- 会话默认空闲 30 分钟过期，服务重启后丢失。生产不启用持久化会话和 remember-me。
+- 会话由 Spring Session JDBC 持久化到现有 MySQL，默认空闲 30 分钟过期，后端重启不会清空有效会话。停机时间也计入过期判断；Cookie 被清除、主动退出或会话过期仍需登录。不启用 remember-me，也不延长 Cookie 的浏览器生命周期。
 - 每个账号每分钟最多 5 次认证尝试，成功后重置账号计数；每个来源 IP 每分钟最多 30 次尝试，包含成功登录。存储上限 10000 个键，满时拒绝新尝试，过期项自动清理。
 - 不信任客户端转发 IP 头；部署反向代理后来源可能都显示为代理地址，需按实际拓扑配置可信代理或在网关增加限流。
 - 已登录用户在后续受保护请求中重新检查启用状态和角色；禁用、删除或角色变化使原会话失效。
-- 当前使用单实例内存 Session 和限流；不支持多实例共享，重启会重置计数。后续可接 Spring Session 和共享限流存储，没有引入 Redis 或微服务。
+- V25 通过 Flyway 创建 `SPRING_SESSION` 和 `SPRING_SESSION_ATTRIBUTES`，存储会话时间、登录上下文和 CSRF 等属性；不存明文密码。沿用同一数据源，关闭 Spring Session 自动建表。Cookie 仍为 `JSESSIONID`，与退出清理一致；会话不再只保存在内存中。首次从旧内存会话升级需要重新登录。
+- 登录和注册限流仍保存在单实例内存，重启会重置计数；共享会话不代表已实现分布式限流。没有引入 Redis 或微服务。
 - 普通用户可通过注册页面自行创建账号；USER 角色及权限规则已经实现并测试。初始化仅用于首个管理员，不能用于重置密码。
 
 ## 测试与构建
@@ -86,7 +87,7 @@ cd ..
 npm run build
 ```
 
-测试使用进程内 H2（MySQL 兼容模式），不需要创建 MySQL 测试库，不使用 DB_PASSWORD，不清理或写入现有 MySQL。执行与生产相同的 V1、V2 迁移。真实 HTTP 测试验证登录、错误密码、禁用账号、401/403、CSRF、Cookie 属性、会话轮换、过期、注销旧会话失效和限流；另测首次管理员初始化和限流窗口恢复。H2 无法完全替代 MySQL 行为验证，真实 MySQL 的迁移和登录仍需要本地密码配置后验证。
+自动测试使用隔离 H2（MySQL 兼容模式），执行与生产相同的 Flyway 迁移，不使用 DB_PASSWORD，不清理或写入现有 MySQL。`AuthIntegrationTests` 验证登录、错误密码、禁用账号、401/403、CSRF、Cookie 属性、会话轮换、过期、注销及限流，并核对登录会话实际入库、退出删除记录。`SessionRestartTests` 使用磁盘 H2，启动和关闭三个独立 JVM，验证相同 Cookie 与 CSRF token 跨重启有效，且退出后的旧 Cookie 即使再重启也不能复用。文件 H2 设置 `WRITE_DELAY=0`，确保进程被终止前提交已经落盘。H2 不完全替代 MySQL，实际环境仍需核对 V25 迁移和会话表。
 
 可选的隔离浏览器联调（测试入口不会进入生产 jar）：
 
@@ -109,6 +110,6 @@ npm run dev -- --host 127.0.0.1 --port 15173 --strictPort
 
 ## 后续工作范围
 
-找回密码、企业 SSO、MFA、完整用户管理后台、审计记录、密码重置与轮换策略、共享会话及分布式限流尚未实现。这是基础登录版本，不代表已经达到完整企业级标准。
+找回密码、企业 SSO、MFA、完整用户管理后台、审计记录、密码重置与轮换策略及分布式限流尚未实现。这是基础登录版本，不代表已经达到完整企业级标准。
 
 实现参考：[Spring Security 表单认证](https://docs.spring.io/spring-security/reference/servlet/authentication/passwords/form.html)、[CSRF 与 JavaScript 应用](https://docs.spring.io/spring-security/reference/servlet/exploits/csrf.html)。依赖版本由 Spring Boot 4.1.1 BOM 管理（Spring Security 7.1.1）。

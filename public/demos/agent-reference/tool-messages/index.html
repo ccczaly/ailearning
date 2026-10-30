@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="upstream-source" content="https://xueai.miyang.cn/slides/7-2a.html">
+<title>一次工具往返的消息记录 · LearnAI</title>
+<link rel="stylesheet" href="../shared/lesson.css">
+<style>
+/* ── 双栏：用户视角 | Message List ── */
+.duo{display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start}
+
+/* 左：用户视角（聊天模拟窗口，保留内部滚动） */
+.chat-panel{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-card);position:sticky;top:16px}
+.l-label{padding:10px 16px;font-size:13px;font-weight:800;color:var(--sub);letter-spacing:.5px;border-bottom:1px solid var(--border)}
+.chat-area{padding:12px;min-height:180px;max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;background:#eae7df}
+.chat-bubble{max-width:88%;padding:9px 13px;border-radius:14px;font-size:15px;line-height:1.6;opacity:0;transform:translateY(6px);transition:all .3s ease}
+.chat-bubble.show{opacity:1;transform:translateY(0)}
+.chat-user{align-self:flex-end;background:var(--cyan);color:white;border-bottom-right-radius:4px}
+.chat-bot{align-self:flex-start;background:var(--card);color:var(--text);border-bottom-left-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.chat-loading{align-self:flex-start;background:var(--card);color:var(--sub);border-bottom-left-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.06);font-size:14px;display:flex;align-items:center;gap:6px}
+.typing-dots span{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--sub);animation:blink 1.4s infinite both}
+.typing-dots span:nth-child(2){animation-delay:.2s}
+.typing-dots span:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.3}40%{opacity:1}}
+.chat-tool-card{align-self:flex-start;background:var(--card);border:1.5px solid rgba(22,163,74,.2);border-radius:12px;padding:10px 12px;box-shadow:0 1px 4px rgba(0,0,0,.06);max-width:88%}
+.ctc-hd{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--success);margin-bottom:5px}
+.ctc-row{display:flex;justify-content:space-between;font-size:13px;padding:2px 0}
+.ctc-label{color:var(--sub)}
+.ctc-val{font-weight:600;color:var(--text)}
+
+/* 产品决策卡片 */
+.decision{padding:12px}
+.dec-card{background:rgba(0,102,255,.04);border:1.5px solid rgba(0,102,255,.2);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--text);line-height:1.6;opacity:0;transform:translateY(4px);transition:all .35s}
+.dec-card.show{opacity:1;transform:translateY(0)}
+.dec-card b{color:var(--accent)}
+
+/* 右：Message List */
+.ml-panel{min-width:0}
+.r-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.r-title{font-size:13px;font-weight:800;color:var(--sub);letter-spacing:.5px}
+.r-stats{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.r-stat{font-size:13px;color:var(--sub);font-weight:600}
+.r-stat span{font-weight:800;color:var(--text)}
+.btn-reset{padding:6px 14px;border-radius:8px;font-size:13px;font-weight:700;border:1px solid var(--border);background:var(--card);color:var(--sub);cursor:pointer;font-family:inherit;min-height:32px}
+
+.ml-area{display:flex;flex-direction:column;gap:8px}
+
+/* 消息条目 — 仿 API 调试器 */
+.ml-entry{border:1.5px solid var(--border);border-radius:10px;overflow:hidden;opacity:0;transform:translateY(8px);transition:all .35s ease;background:var(--card)}
+.ml-entry.show{opacity:1;transform:translateY(0)}
+.ml-head{padding:6px 12px;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:700;background:rgba(0,0,0,.025);border-bottom:1px solid var(--border);flex-wrap:wrap;gap:4px}
+.ml-idx{font-family:"SF Mono","Fira Code",Menlo,monospace;font-size:13px;font-weight:800;color:var(--sub)}
+.ml-role{display:flex;align-items:center;gap:6px}
+.ml-role-badge{padding:2px 7px;border-radius:4px;font-size:12px;font-weight:800;letter-spacing:.3px}
+.ml-tokens{color:var(--sub);font-weight:600;font-size:13px}
+.ml-body{padding:10px 12px 12px;font-size:14px;line-height:1.6;color:var(--text)}
+.ml-field{font-family:"SF Mono","Fira Code",Menlo,monospace;font-size:13px;color:var(--sub);font-weight:600;margin-bottom:1px;word-break:break-word}
+.ml-field-val{color:var(--text);font-weight:400}
+.ml-body-muted{color:var(--sub);font-size:13px}
+.ml-tool-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:5px;font-size:13px;font-weight:700;margin:2px 0}
+.ml-param{display:flex;gap:8px;font-size:13px;padding:2px 0;padding-left:16px;font-family:"SF Mono","Fira Code",Menlo,monospace}
+.ml-param-k{color:var(--sub);min-width:40px}
+.ml-param-v{color:var(--text);font-weight:600}
+
+/* 框架动作行 */
+.ml-action{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;background:rgba(217,119,6,.04);border:1px dashed rgba(217,119,6,.3);font-size:13px;color:var(--amber);font-weight:600;opacity:0;transform:translateY(6px);transition:all .3s}
+.ml-action.show{opacity:1;transform:translateY(0)}
+.ml-action-icon{font-size:15px}
+
+/* 请求方向标记 */
+.ml-dir{display:flex;align-items:center;gap:6px;padding:2px 0;font-size:13px;font-weight:700;color:var(--sub);opacity:0;transition:opacity .3s}
+.ml-dir.show{opacity:1}
+.ml-dir-arrow{font-size:15px}
+
+/* 折叠的工具列表 */
+.ml-tools-summary{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.ml-ts-chip{padding:3px 8px;border-radius:4px;font-size:13px;font-weight:700;background:rgba(0,0,0,.05);color:var(--sub)}
+
+/* JSON 格式参考（可折叠卡片） */
+.json-panel{border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--card);box-shadow:var(--shadow-card)}
+.json-toggle{padding:12px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800;color:var(--sub);user-select:none;transition:all .15s;min-height:44px}
+.json-toggle:hover{background:rgba(0,0,0,.02)}
+.json-panel.closed .json-ref{display:none}
+.json-ref{background:#1e1e2e;font-family:"SF Mono","Fira Code",Menlo,monospace;font-size:12.5px;line-height:1.7;color:#cdd6f4;white-space:pre;padding:14px 16px;overflow-x:auto}
+.json-ref .jr-k{color:#89b4fa}
+.json-ref .jr-v{color:#a6e3a1}
+.json-ref .jr-null{color:#f38ba8;font-style:italic}
+.json-ref .jr-cm{color:#6c7086}
+.json-ref .jr-brace{color:#cdd6f4}
+
+.hint-line{font-size:13px;color:var(--sub);margin-top:10px;min-height:20px}
+
+@media (max-width:768px){
+  .duo{grid-template-columns:1fr}
+  .chat-panel{position:static}
+  .chat-area{max-height:260px}
+}
+
+.ml-call-json{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.6 monospace;margin:6px 0}.json-ref{white-space:pre-wrap;overflow-wrap:anywhere}
+:root{--green:var(--success);--orange:var(--amber);--red:var(--danger);--muted:var(--sub)}.adaptation-note{font-size:13px;line-height:1.75;color:var(--sub);padding:12px 15px;border:1px solid var(--border);border-radius:10px;margin:0 0 18px;background:var(--card)}pre{max-width:100%;overflow:auto}.tank-slider{min-height:32px}</style>
+</head>
+<body>
+<!-- Copyright (c) 2026 洛小山 · Miyang Tech (Zhuhai Hengqin) Co., Ltd.
+     Adapted by LearnAI from the public itshen/learn-ai source, AGPL-3.0. -->
+<article class="lesson wide">
+<p class="adaptation-note">观察同一次天气查询的用户界面与累计消息记录。计数均为预设教学数据；工具配置位于 messages 之外，arguments 使用 JSON 字符串，tool_call_id 对应原请求。</p>
+<div class="duo reveal" id="duoDemo">
+    <!-- 左：用户视角 + 设计决策 -->
+    <aside class="chat-panel">
+      <div class="l-label">用户看到的界面</div>
+      <div class="chat-area" id="chatArea"></div>
+      <div class="decision" id="decArea"></div>
+    </aside>
+
+    <!-- 右：Message List -->
+    <div class="ml-panel">
+      <div class="r-bar">
+        <div class="r-title">实际运行过程</div>
+        <div class="r-stats">
+          <div class="r-stat">消息 <span id="msgCount">0</span></div>
+          <div class="r-stat">示例消息量 <span id="tokenCount">0</span></div>
+          <div class="r-stat">模型调用 <span id="apiCount">0</span></div>
+          <button class="btn-reset" onclick="reset()">↺ 重播</button>
+        </div>
+      </div>
+      <div class="ml-area" id="mlArea"></div>
+      <div class="hint-line" id="hint">共 7 步 · 看一次查天气背后发生了什么</div>
+    </div>
+  </div>
+
+  <div class="sec-label reveal">本例的累计消息记录（Chat Completions 风格示意）</div>
+  <div class="json-panel open reveal  " id="jsonPanel">
+    <div class="json-toggle" onclick="toggleJson()">
+      <span id="jsonArrow">▼</span>
+      <span class="json-toggle-label">展开 / 收起工具配置与消息记录</span>
+    </div>
+    <pre class="json-ref">{
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "get_weather",
+        "description": "查询指定城市和日期的天气（示例）",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "city": {
+              "type": "string"
+            },
+            "date": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "city",
+            "date"
+          ],
+          "additionalProperties": false
+        }
+      }
+    }
+  ],
+  "messages": [
+    {
+      "role": "system",
+      "content": "你是学习助手。根据工具回执回答，不编造结果。"
+    },
+    {
+      "role": "user",
+      "content": "北京明天天气怎么样？"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_abc123",
+          "type": "function",
+          "function": {
+            "name": "get_weather",
+            "arguments": "{\"city\":\"北京\",\"date\":\"2026-04-23\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_abc123",
+      "content": "{\"weather\":\"小雨转多云\",\"temp\":\"12°C ~ 20°C\",\"wind\":\"北风 3 级\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "本例天气为小雨转多云，12–20°C，出门建议带伞。"
+    }
+  ]
+}
+
+// 累计记录示意，不是某一次完整请求。
+// 本例：5 条消息、2 次模型调用、1 次天气工具调用。</pre>
+  </div>
+
+  <div class="sec-label reveal ">Takeaway</div>
+  <div class="l-callout reveal " id="insightBar">
+    <b>本例观察</b>　这一次工具往返形成 5 条消息、2 次模型调用、1 次工具调用。其他任务可能有并行工具、多轮工具请求或不同消息格式；这些数量不是通用定律。
+  </div>
+</article>
+<script src="../shared/embed.js"></script>
+<script src="../shared/lesson.js"></script>
+<script>
+var msgIdx = 0;
+
+var STEPS = [
+  {
+    msgs: 1, tokens: 220, apis: 0,
+    hint: '1/7 · 应用提供规则与独立的工具配置',
+    chat: [],
+    decision: '<b>📌 设计决策：</b>应用在请求配置中提供可用工具，在 system 消息中提供规则。工具定义也会占用输入预算，实际体量取决于名称、描述、Schema 与接口。',
+    ml: [
+      { type:'dir', arrow:'→', text:'应用发送第 1 次模型请求（tools 配置独立于 messages）' },
+      { type:'entry', role:'system', roleColor:'#6b6b70', roleBg:'rgba(0,0,0,.06)', tokens: 220,
+        fields:[
+          {k:'role', v:'"system"'},
+          {k:'content', v:'"你是学习助手，请根据工具回执回答。"'}
+        ]
+      }
+    ]
+  },
+  {
+    msgs: 2, tokens: 250, apis: 0,
+    hint: '2/7 · 用户的问题被追加到 Message List',
+    chat: [{ type:'user', text:'北京明天天气怎么样？' }],
+    decision: '<b>📌 设计决策：</b>用户发完消息后你展示什么？大多数产品会先显示「思考中…」的加载态。但用户不知道接下来会触发工具调用，要不要告诉他？',
+    ml: [
+      { type:'entry', role:'user', roleColor:'#0891b2', roleBg:'rgba(8,145,178,.1)', tokens: 30,
+        fields:[
+          {k:'role', v:'"user"'},
+          {k:'content', v:'"北京明天天气怎么样？"'}
+        ]
+      }
+    ]
+  },
+  {
+    msgs: 3, tokens: 310, apis: 1,
+    hint: '3/7 · 模型没有直接回答，它返回了一个 tool_call',
+    chat: [{ type:'loading', text:'思考中' }],
+    decision: '<b>📌 关键认知：</b>注意看右边：content 是 <b>null</b>！模型没有回答用户，而是输出了 tool_calls：一段结构化文字，告诉你的代码「我想调这个工具」。模型自己什么都没执行。',
+    ml: [
+      { type:'dir', arrow:'←', text:'模型 API 返回（本例第 1 次调用完成）' },
+      { type:'entry', role:'assistant', roleColor:'#7c3aed', roleBg:'rgba(124,58,237,.1)', tokens: 60,
+        fields:[
+          {k:'role', v:'"assistant"'},
+          {k:'content', v:'null', muted:true},
+          {k:'tool_calls', special:'tool_call', name:'get_weather', id:'call_abc123', args:[['city','"北京"'],['date','"2026-04-23"']]}
+        ]
+      }
+    ]
+  },
+  {
+    msgs: 3, tokens: 310, apis: 1,
+    hint: '4/7 · 你的代码接管：校验参数 → 调真实 API',
+    chat: [{ type:'remove-loading' }, { type:'loading', text:'正在查询天气' }],
+    decision: '<b>📌 设计决策：</b>这里是你的工程代码在运行，不是模型。你需要决定：① 参数校验多严格？② 超时设多久？③ 失败了重试几次？④ 给用户显示「正在查询天气」还是继续显示「思考中」？',
+    ml: [
+      { type:'action', icon:'⚙️', text:'你的代码：解析 tool_calls → 校验参数 → city 合法 ✓、date 格式正确 ✓ → 调用天气 API…' }
+    ]
+  },
+  {
+    msgs: 4, tokens: 360, apis: 1,
+    hint: '5/7 · 天气 API 返回结果，你的代码把它塞回 messages 数组',
+    chat: [],
+    decision: '<b>📌 设计决策：</b>工具返回了原始数据。你可以选择：直接把原始数据放进 messages（简单但 Token 多），还是先处理/精简（省 Token 但需要额外代码）。',
+    ml: [
+      { type:'action', icon:'✅', text:'天气工具返回固定示例结果→ 你的代码构造一条 tool 消息追加到 messages' },
+      { type:'entry', role:'tool', roleColor:'#16a34a', roleBg:'rgba(22,163,74,.1)', tokens: 50,
+        fields:[
+          {k:'role', v:'"tool"'},
+          {k:'tool_call_id', v:'"call_abc123"', muted:true},
+          {k:'content', special:'json', rows:[['weather','"小雨转多云"'],['temp','"12°C ~ 20°C"'],['wind','"北风 3 级"']]}
+        ],
+        footnote:'这条消息由你的代码注入，不是模型生成的'
+      }
+    ]
+  },
+  {
+    msgs: 5, tokens: 480, apis: 2,
+    hint: '6/7 · 你的代码第 2 次调用模型 API：把完整 4 条消息都发过去',
+    chat: [{ type:'remove-loading' }],
+    decision: '<b>📌 设计决策：</b>现在要第 2 次调用模型 API，把全部 4 条消息一起发过去，让模型看到工具结果后生成回答。注意：在本例完整携带历史的策略中，前四条消息会再次作为输入；实际计费还取决于接口、缓存与输入输出单价。',
+    ml: [
+      { type:'dir', arrow:'→', text:'你的代码发送第 2 次请求（携带完整 4 条消息 + 工具结果）' },
+      { type:'dir', arrow:'←', text:'模型返回预设的最终回答' },
+      { type:'entry', role:'assistant', roleColor:'#7c3aed', roleBg:'rgba(124,58,237,.1)', tokens: 120,
+        fields:[
+          {k:'role', v:'"assistant"'},
+          {k:'content', v:'"明天北京小雨转多云，气温 12-20°C，北风 3 级，出门建议带把伞。"'}
+        ]
+      }
+    ]
+  },
+  {
+    msgs: 5, tokens: 480, apis: 2,
+    hint: '7/7 · 用户看到最终回答。整个过程：2 次模型调用 + 1 次天气 API',
+    chat: [
+      { type:'bot', text:'明天北京小雨转多云，气温 12-20°C，北风 3 级，出门建议带把伞。☂️' }
+    ],
+    decision: '<b>📌 设计决策：</b>最终展示形式：只显示文字？还是额外展示一张结构化卡片？卡片体验更好，但需要前端额外开发。<br><b>全流程总结：</b>本例共 5 条消息、2 次模型调用、1 次天气工具调用。480 是预设的累计消息体量，不是实际 tokenizer 测量或多轮累计账单；本页不请求真实接口。',
+    ml: []
+  }
+];
+
+var cur = 0;
+
+function addChat(item) {
+  var area = document.getElementById('chatArea');
+  if (item.type === 'remove-loading') {
+    var ld = area.querySelector('.chat-loading');
+    if (ld) ld.remove();
+    return;
+  }
+  var el = document.createElement('div');
+  if (item.type === 'user') {
+    el.className = 'chat-bubble chat-user';
+    el.textContent = item.text;
+  } else if (item.type === 'bot') {
+    el.className = 'chat-bubble chat-bot';
+    el.textContent = item.text;
+  } else if (item.type === 'loading') {
+    el.className = 'chat-bubble chat-loading';
+    el.innerHTML = item.text + ' <span class="typing-dots"><span></span><span></span><span></span></span>';
+  } else if (item.type === 'tool-card') {
+    el.className = 'chat-tool-card';
+    var h = '<div class="ctc-hd">' + item.title + '</div>';
+    for (var i = 0; i < item.rows.length; i++) {
+      h += '<div class="ctc-row"><span class="ctc-label">' + item.rows[i][0] + '</span><span class="ctc-val">' + item.rows[i][1] + '</span></div>';
+    }
+    el.innerHTML = h;
+  }
+  area.appendChild(el);
+  requestAnimationFrame(function() { requestAnimationFrame(function() {
+    el.classList.add('show');
+    area.scrollTop = area.scrollHeight;
+  })});
+}
+
+function renderField(f) {
+  var h = '<div class="ml-field"><span style="color:var(--sub)">' + f.k + ':</span> ';
+  if (f.special === 'chips') {
+    h += '[</div><div class="ml-tools-summary" style="padding-left:16px">';
+    for (var c = 0; c < f.chips.length; c++) {
+      h += '<div class="ml-ts-chip">' + f.chips[c] + '</div>';
+    }
+    h += '</div><div class="ml-field" style="margin-top:2px">]</div>';
+  } else if (f.special === 'tool_call') {
+    var args = {};
+    for (var a = 0; a < f.args.length; a++) args[f.args[a][0]] = JSON.parse(f.args[a][1]);
+    var request = [{id:f.id,type:'function',function:{name:f.name,arguments:JSON.stringify(args)}}];
+    var escaped = JSON.stringify(request, null, 2).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+    h += '</div><pre class="ml-call-json">' + escaped + '</pre>';
+  } else if (f.special === 'json') {
+    h += '{</div>';
+    for (var r = 0; r < f.rows.length; r++) {
+      h += '<div class="ml-param"><span class="ml-param-k">' + f.rows[r][0] + '</span><span class="ml-param-v">' + f.rows[r][1] + '</span></div>';
+    }
+    h += '<div class="ml-field">}</div>';
+  } else {
+    var valStyle = f.muted ? 'color:var(--sub);font-style:italic' : 'color:var(--text)';
+    h += '<span class="ml-field-val" style="' + valStyle + '">' + f.v + '</span></div>';
+  }
+  return h;
+}
+
+function addML(item) {
+  var area = document.getElementById('mlArea');
+  var el = document.createElement('div');
+  if (item.type === 'dir') {
+    el.className = 'ml-dir';
+    el.innerHTML = '<span class="ml-dir-arrow">' + item.arrow + '</span> ' + item.text;
+  } else if (item.type === 'action') {
+    el.className = 'ml-action';
+    el.innerHTML = '<span class="ml-action-icon">' + item.icon + '</span> ' + item.text;
+  } else if (item.type === 'entry') {
+    el.className = 'ml-entry';
+    var bodyHtml = '';
+    for (var i = 0; i < item.fields.length; i++) {
+      bodyHtml += renderField(item.fields[i]);
+    }
+    if (item.footnote) {
+      bodyHtml += '<div class="ml-body-muted" style="margin-top:4px;font-style:italic">' + item.footnote + '</div>';
+    }
+    el.innerHTML =
+      '<div class="ml-head">' +
+        '<div class="ml-role">' +
+          '<span class="ml-idx">messages[' + msgIdx + ']</span>' +
+          '<span class="ml-role-badge" style="background:' + item.roleBg + ';color:' + item.roleColor + '">' + item.role + '</span>' +
+        '</div>' +
+        '<span class="ml-tokens">' + item.tokens + ' Token</span>' +
+      '</div>' +
+      '<div class="ml-body">' + bodyHtml + '</div>';
+    msgIdx++;
+  }
+  area.appendChild(el);
+  setTimeout(function() {
+    el.classList.add('show');
+  }, 60);
+}
+
+var playTimer = null;
+
+function playStep() {
+  if (cur >= STEPS.length) return;
+  var s = STEPS[cur];
+
+  document.getElementById('msgCount').textContent = s.msgs;
+  document.getElementById('tokenCount').textContent = s.tokens;
+  document.getElementById('apiCount').textContent = s.apis;
+  document.getElementById('hint').textContent = s.hint;
+
+  for (var i = 0; i < s.chat.length; i++) addChat(s.chat[i]);
+  for (var j = 0; j < s.ml.length; j++) {
+    (function(item, delay) {
+      setTimeout(function() { addML(item); }, delay);
+    })(s.ml[j], j * 150);
+  }
+
+  var da = document.getElementById('decArea');
+  da.innerHTML = '<div class="dec-card">' + s.decision + '</div>';
+  requestAnimationFrame(function() { requestAnimationFrame(function() {
+    var dc = da.querySelector('.dec-card');
+    if (dc) dc.classList.add('show');
+  })});
+
+  cur++;
+  if (cur >= STEPS.length) {
+    playTimer = null;
+  } else {
+    playTimer = setTimeout(playStep, 900);
+  }
+}
+
+function startPlay() {
+  if (playTimer) clearTimeout(playTimer);
+  playTimer = setTimeout(playStep, 300);
+}
+
+function toggleJson() {
+  var p = document.getElementById('jsonPanel');
+  var a = document.getElementById('jsonArrow');
+  if (p.classList.contains('open')) {
+    p.classList.remove('open');
+    p.classList.add('closed');
+    a.textContent = '▶';
+  } else {
+    p.classList.remove('closed');
+    p.classList.add('open');
+    a.textContent = '▼';
+  }
+}
+
+function reset() {
+  if (playTimer) clearTimeout(playTimer);
+  playTimer = null;
+  cur = 0;
+  msgIdx = 0;
+  document.getElementById('chatArea').innerHTML = '';
+  document.getElementById('mlArea').innerHTML = '';
+  document.getElementById('decArea').innerHTML = '';
+  document.getElementById('msgCount').textContent = '0';
+  document.getElementById('tokenCount').textContent = '0';
+  document.getElementById('apiCount').textContent = '0';
+  document.getElementById('hint').textContent = '共 7 步 · 自动播放中…';
+  startPlay();
+}
+
+lessonOnView(document.getElementById('duoDemo'), function() {
+  document.getElementById('hint').textContent = '共 7 步 · 自动播放中…';
+  startPlay();
+}, 0.2);
+</script>
+</body>
+</html>

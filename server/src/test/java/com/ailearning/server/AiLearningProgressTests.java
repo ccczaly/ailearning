@@ -32,7 +32,7 @@ class AiLearningProgressTests {
     }
     @Test void noRecordsMeansZeroCompletionAndNoInventedReadingPosition() {
         var result=progress.read(account());
-        assertEquals(96,result.totalLessons());
+        assertEquals(123,result.totalLessons());
         assertEquals(0,result.completedLessons()); assertEquals(0,result.visitedLessons());
         assertEquals(9,result.modules().size()); assertNull(result.lastVisited());
         assertNotNull(result.nextLesson());
@@ -49,7 +49,7 @@ class AiLearningProgressTests {
         var parent=learning.detail("rag").sections().stream().filter(s -> s.id()==hidden).findFirst().orElseThrow().parentId();
         jdbc.update("UPDATE knowledge_sections SET status='DRAFT' WHERE id=?",parent);
         var result=progress.read(mine);
-        assertEquals(94,result.totalLessons()); assertEquals(1,result.completedLessons()); assertEquals(2,result.visitedLessons());
+        assertEquals(121,result.totalLessons()); assertEquals(1,result.completedLessons()); assertEquals(2,result.visitedLessons());
         assertEquals(second,result.lastVisited().sectionId());
         assertEquals(second,result.nextLesson().sectionId());
         var tool=new AiProgressTool(mine,progress);

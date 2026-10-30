@@ -43,16 +43,21 @@ public class LearningProgressController {
     @Transactional
     public Progress update(@PathVariable String slug, @PathVariable long sectionId,
             @RequestBody Change change, Authentication authentication) {
-        if (change.completed() != null)
+        var section = learning.detail(slug).sections().stream().filter(s -> s.id() == sectionId && s.nodeType().equals("LESSON")).findFirst()
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        if (change.completed() != null && (!slug.equals("agents") || section.hasQuiz()))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Completion is managed by quizzes");
-        if (learning.detail(slug).sections().stream().noneMatch(s -> s.id() == sectionId && s.nodeType().equals("LESSON")))
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         long userId = accounts.profile(authentication.getName()).id();
         // Insert once without overwriting completion when revisiting a lesson.
         jdbc.update("""
             INSERT INTO user_section_progress(user_id,section_id) VALUES(?,?)
             ON DUPLICATE KEY UPDATE last_accessed_at=CURRENT_TIMESTAMP(3)
             """, userId, sectionId);
+        // The Agent course records reading, not a graded project or a quiz pass.
+        if (change.completed() != null) jdbc.update("""
+            UPDATE user_section_progress SET status=?,completed_at=CASE WHEN ? THEN COALESCE(completed_at,CURRENT_TIMESTAMP(3)) ELSE NULL END
+            WHERE user_id=? AND section_id=?
+            """, change.completed() ? "COMPLETED" : "IN_PROGRESS", change.completed(), userId, sectionId);
         return read(slug, userId);
     }
 }

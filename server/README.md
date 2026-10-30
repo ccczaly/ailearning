@@ -2,7 +2,7 @@
 
 ## 其余七个模块
 
-V19 新增七套完整入门课程，全部已发布、直接开放阅读。每模块 4 章 8 节、48 分钟，每节 3 道测验，共 56 节、168 题、336 分钟。首页九个模块现在都有课程入口。
+V19 新增七套入门课程；V22 将其中的 AI Agent 重构为 10 章 30 节、240 分钟，以研究助手和四类交互推演讲解系统原理，不再使用旧单选题或 Python 下载包。其余六个模块仍各 4 章 8 节、48 分钟，每节 3 道测验。首页九个模块均有课程入口。
 
 | 模块 | 课程 slug / 内容源文件名 |
 | --- | --- |
@@ -14,13 +14,13 @@ V19 新增七套完整入门课程，全部已发布、直接开放阅读。每�
 | AI 工程化 | `app-engineering` |
 | 部署与基础设施 | `deployment` |
 
-源文件为 `content/{slug}.json`，包含正文、目录顺序与题目。V19 只新增课程和题目，不修改旧课程、历史迁移或用户记录。所有新测验继续复用 `lesson_quiz_questions`、事务评分、答题快照与用户进度；知识接口只返回 `hasQuiz`，不公开题目答案。
+源文件为 `content/{slug}.json`。已应用迁移保持不变；V22 重排并保留八个旧 Agent 课节 ID，新增 22 节，删除旧活动题库，保留用户进度与历史答题快照。V23 单独重写 1.1，用工具配置、试运行和费用缺失决策替代原翻页轨迹，保留该课节 ID 与阅读记录。Agent 支持显式标记“已读”，不代表通过项目评测；其他课程继续由测验管理完成状态。
 
-`node scripts/generate-remaining-courses.mjs --check` 同时校验 V19 和生成的 `src/data/course-catalog.ts`，页面的章号、标题与下载入口由该目录表提供。已经应用的 V19 不可覆盖，后续内容修订须使用新迁移，避免修改源文件后与数据库不一致。
+`node scripts/generate-remaining-courses.mjs --check` 校验 V19 历史快照和当前目录元数据；`node scripts/generate-agents-course.mjs --check` 校验 Agent 历史快照与当前课程内容；1.1 以 V32 的简短引入、架构和对话／执行双栏演示为准，V31 及更早迁移保持不可变。V24 用 `CONCAT` / `CHAR(92)` 保留 MySQL 字符串中的 JSON 转义，修复 1.1 互动显示为配置代码的问题。目录元数据可用前一脚本的 `--write-metadata` 更新，不修改数据库迁移。后续内容修订须使用新迁移。
 
-七套标准库 Python 3.11+ 示例位于 `examples/{slug}`，默认离线、不调用付费模型。运行 `python scripts/package-remaining-examples.py` 更新显式文件白名单生成的下载包，`--check` 核对源码一致性。`python scripts/check-remaining-examples.py` 运行全部示例测试、入口和 56 段正文 Python 代码。MCP 示范固定为 2025-11-25 只读 stdio 子集；其他模拟与生产边界见各模块 README。部署示例不自动构建镜像、发布云服务或修改实际数据库。
+其余六套标准库 Python 3.11+ 示例位于 `examples/{slug}`，默认离线。`python scripts/package-remaining-examples.py --check` 核对下载包；`python scripts/check-remaining-examples.py` 运行六套示例测试、入口和 48 段正文代码。Agent 1.1 使用前端预设教学演示，无专用模型调用接口，逐步展示请求、工具调用与结果回传。相关测试为 `scripts/agent-interaction.test.mjs`。MCP、部署等示例的边界见各自 README。
 
-相关后端验证为 `RemainingCoursesTests`、`RemainingCoursesMigrationTests`，分别覆盖所有新课节评分、记录隔离与访问限制，以及旧课程、题库、用户与学习记录保留。`AiIntegrationTests` 使用模拟模型检查七个模块的课节上下文，测试不产生供应商用量。
+相关后端验证为 `RemainingCoursesTests`、`RemainingCoursesMigrationTests`、`AgentsCourseTests`、`AgentsCourseMigrationTests`，覆盖实践课评分、Agent 阅读状态、访问限制与迁移记录保留。`AiIntegrationTests` 使用模拟模型检查课节上下文，不产生供应商用量。
 
 ## LLM 应用开发
 
@@ -92,7 +92,9 @@ $env:DB_URL = 'jdbc:mysql://localhost:3306/ailearning?connectionTimeZone=UTC&cha
 
 `npm run dev:server` 使用 Node 监听 `server/src/main`、`pom.xml`、`.env.local` 和 `start-local.ps1`，保存稳定约一秒后终止本次启动的进程树，再执行 Maven 清理、编译和启动。删除或重命名 Java 文件也能清理旧 class。无需 IDE 自动编译或额外依赖。
 
-编译失败会显示错误，修复并保存后重试；`Ctrl+C` 停止监听及后端。监听不包含 `target` 或测试代码。启动监听前请停止旧后端；监听器不会自动关闭其他进程。重启会丢失内存 Session，需要重新登录。迁移 SQL 应新增版本，不能修改已执行的迁移。
+编译失败会显示错误，修复并保存后重试；`Ctrl+C` 停止监听及后端。监听不包含 `target` 或测试代码。启动监听前请停止旧后端；监听器不会自动关闭其他进程。登录会话由 Spring Session JDBC 写入现有 MySQL，未过期且 Cookie 保留时，重启后能恢复登录。首次从旧内存会话升级需重新登录一次。迁移 SQL 应新增版本，不能修改已执行的迁移。
+
+V25 创建标准会话及属性表，`spring.session.jdbc.initialize-schema=never` 让 Flyway 独占建表职责。Boot 自动接管 `HttpSession`，使用现有数据源并沿用 `server.servlet.session.timeout=30m`；`SessionConfig` 保持 `JSESSIONID`、HttpOnly、SameSite=Lax、Path=/ 和现有 Secure 配置。退出会删除数据库会话，已有账号状态与角色复核继续生效。过期会话由 Spring Session 清理；数据库不可用时无法恢复会话。验证可运行 `-Dtest=AuthIntegrationTests,SessionRestartTests`，其中后者跨真实 JVM 重启检查 Cookie 与 CSRF 的持久化及退出后的不可重放。
 
 监听器回归验证：在根目录执行 `node --test scripts/dev-server.test.mjs`。
 

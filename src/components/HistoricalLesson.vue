@@ -4,6 +4,7 @@ import { renderLessonSections } from '../markdown';
 import ReadingIcon from './ReadingIcon.vue';
 import ElizaDiagram from './ElizaDiagram.vue';
 import MechanismDiagram from './MechanismDiagram.vue';
+import AgentInteraction from './AgentInteraction.vue';
 
 const props = defineProps<{ source: string }>();
 const sections = computed(() => renderLessonSections(props.source));
@@ -13,10 +14,10 @@ const sections = computed(() => renderLessonSections(props.source));
   <div class="history-body">
     <template v-for="(section, index) in sections" :key="index">
       <div v-if="!section.title" class="history-intro history-prose" v-html="section.contentHtml"></div>
-      <details v-else-if="section.title === '延伸阅读'" class="history-reading">
+      <details v-else-if="section.title === '延伸阅读' || section.title === '深入阅读'" class="history-reading">
         <summary>
           <ReadingIcon name="book" />
-          <span><strong>延伸阅读</strong><small>背景、细节与原始资料</small></span>
+          <span><strong>{{ section.title }}</strong><small>{{ section.title === '深入阅读' ? '按需探索 · 实现细节与原始资料' : '背景、细节与原始资料' }}</small></span>
           <svg class="reading-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m8 10 4 4 4-4" /></svg>
         </summary>
         <div class="history-prose reading-details" v-html="section.contentHtml"></div>
@@ -58,6 +59,8 @@ const sections = computed(() => renderLessonSections(props.source));
         <ElizaDiagram v-else-if="section.title === '规则为什么会遇到边界'" kind="limits" />
         <MechanismDiagram v-for="(diagram, diagramIndex) in section.diagrams" :key="diagramIndex" :diagram="diagram" />
         <div class="history-prose" v-html="section.contentHtml"></div>
+        <AgentInteraction v-for="(interaction, interactionIndex) in section.interactions" :key="interactionIndex" :interaction="interaction" />
+        <p v-if="section.interactionError" class="interaction-error" role="alert">这个互动暂时没有加载成功，请刷新页面后重试。</p>
       </section>
     </template>
   </div>
@@ -65,6 +68,7 @@ const sections = computed(() => renderLessonSections(props.source));
 
 <style scoped>
 .history-body { display: flex; flex-direction: column; gap: 30px; padding-top: 24px; container-type: inline-size; container-name: historical-body; }
+.interaction-error { padding: 16px 20px; border: 1px solid #e3d6b9; border-radius: 10px; background: #fffaf0; color: #765f36; font-size: 14px; }
 .history-prose { font-size: 16px; line-height: 1.85; color: #43516b; overflow-wrap: anywhere; }
 .history-prose :deep(p) { margin: 0 0 14px; }
 .history-prose :deep(p:last-child) { margin-bottom: 0; }

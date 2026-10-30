@@ -10,23 +10,9 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import static org.junit.jupiter.api.Assertions.*;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
-import org.springframework.boot.web.servlet.ServletListenerRegistrationBean;
-import jakarta.servlet.http.HttpSessionListener;
-import jakarta.servlet.http.HttpSessionEvent;
 
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import(AuthIntegrationTests.ShortSessions.class)
 class AuthIntegrationTests {
-    @TestConfiguration static class ShortSessions {
-        @Bean ServletListenerRegistrationBean<HttpSessionListener> shortSessions() {
-            return new ServletListenerRegistrationBean<>(new HttpSessionListener() {
-                @Override public void sessionCreated(HttpSessionEvent event) { event.getSession().setMaxInactiveInterval(2); }
-            });
-        }
-    }
     @LocalServerPort int port;
     @Autowired JdbcTemplate jdbc;
     @Autowired PasswordEncoder encoder;
@@ -71,6 +57,7 @@ class AuthIntegrationTests {
         String csrf = token(); String previous = sessionId();
         assertEquals(204, login(name, password, csrf).statusCode());
         assertNotEquals(previous, sessionId());
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM SPRING_SESSION WHERE SESSION_ID=? AND PRINCIPAL_NAME=?",Integer.class,sessionId(),name));
         var me = send("GET", "/api/me", "", null);
         assertEquals(200, me.statusCode());
         assertTrue(me.body().contains("Test Person"));
@@ -80,6 +67,7 @@ class AuthIntegrationTests {
         assertEquals(403, send("POST", "/api/auth/logout", "", csrf).statusCode());
         String authenticatedSession = sessionId();
         assertEquals(204, send("POST", "/api/auth/logout", "", token()).statusCode());
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM SPRING_SESSION WHERE SESSION_ID=?",Integer.class,authenticatedSession));
         var replay = HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/api/me"))
             .header("Cookie", "JSESSIONID="+authenticatedSession).GET().build();
         assertEquals(401, HttpClient.newHttpClient().send(replay, HttpResponse.BodyHandlers.ofString()).statusCode());

@@ -1,5 +1,5 @@
 // Generated from course content by scripts/generate-remaining-courses.mjs.
-export const courseCatalog: Record<string, { hint: string; download: string; stages: { year: string; label: string; topic: string }[] }> = {
+export const courseCatalog: Record<string, { hint: string; download: string | null; stages: { year: string; label: string; topic: string }[] }> = {
   "llm-app-dev": {
     "hint": "沿开发流程学习，逐步完成自己的学习助手。",
     "download": "/examples/llm-app-dev.zip",
@@ -89,28 +89,48 @@ export const courseCatalog: Record<string, { hint: string; download: string; sta
     ]
   },
   "agents": {
-    "hint": "按章节学习，结合本地示例与测验检查理解。",
-    "download": "/examples/agents.zip",
+    "hint": "沿研究助手循序渐进，主线讲清原理，深入阅读按需探索；已读记录不代表项目评测。",
+    "download": null,
     "stages": [
       {
         "year": "01",
-        "label": "任务拆解",
-        "topic": "工作流与工具"
+        "label": "认识 Agent",
+        "topic": "从“会回答”到“能做事”"
       },
       {
         "year": "02",
-        "label": "执行循环",
-        "topic": "校验与预算"
+        "label": "Function Calling",
+        "topic": "让模型连接真实工具"
       },
       {
         "year": "03",
-        "label": "副作用控制",
-        "topic": "重试与确认"
+        "label": "计划与运行循环",
+        "topic": "让 Agent 自己推进任务"
       },
       {
         "year": "04",
-        "label": "验证 Agent",
-        "topic": "轨迹与交付"
+        "label": "上下文工程与记忆",
+        "topic": "让 Agent 记住重点"
+      },
+      {
+        "year": "05",
+        "label": "RAG 与知识库",
+        "topic": "让回答有资料依据"
+      },
+      {
+        "year": "06",
+        "label": "Skill 与 MCP",
+        "topic": "复用方法，扩展能力"
+      },
+      {
+        "year": "07",
+        "label": "失败与安全",
+        "topic": "让 Agent 在边界内工作"
+      },
+      {
+        "year": "08",
+        "label": "Agent 工程",
+        "topic": "从“能运行”到“能交付”"
       }
     ]
   },

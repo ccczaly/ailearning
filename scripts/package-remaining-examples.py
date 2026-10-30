@@ -5,7 +5,7 @@ import sys
 import zipfile
 
 root = Path(__file__).resolve().parent.parent
-modules = ["engineering-basics", "rag", "agents", "mcp", "multimodal", "app-engineering", "deployment"]
+modules = ["engineering-basics", "rag", "mcp", "multimodal", "app-engineering", "deployment"]
 for module in modules:
     files = ["README.md", "lab.py", "tests.py"]
     if module == "deployment":
@@ -23,4 +23,4 @@ for module in modules:
     else:
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(buffer.getvalue())
-print("Seven example downloads match source." if "--check" in sys.argv else "Packaged seven example downloads.")
+print("Six example downloads match source." if "--check" in sys.argv else "Packaged six example downloads.")

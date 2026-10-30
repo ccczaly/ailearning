@@ -1,5 +1,6 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { renderLessonSections } from '../src/markdown.ts';
+import { createHash } from 'node:crypto';
 
 const modules = ['engineering-basics', 'rag', 'agents', 'mcp', 'multimodal', 'app-engineering', 'deployment'];
 const courses = modules.map(code => JSON.parse(readFileSync(new URL(`../content/${code}.json`, import.meta.url), 'utf8')));
@@ -8,6 +9,7 @@ const metadataPath = new URL('../src/data/course-catalog.ts', import.meta.url);
 const allCourses = [JSON.parse(readFileSync(new URL('../content/llm-app-dev.json', import.meta.url), 'utf8')), ...courses];
 const titleSet = new Set();
 for (const [index, course] of courses.entries()) {
+  if (course.slug === 'agents') continue; // V22 owns the revised Agent curriculum.
   if (course.slug !== modules[index] || course.moduleCode !== modules[index] || course.chapters.length !== 4) throw Error(`Invalid module: ${course.slug}`);
   const keys = new Set();
   for (const chapter of course.chapters) {
@@ -32,7 +34,14 @@ for (const [index, course] of courses.entries()) {
 const literal = s => `'${String(s).replaceAll("'", "''")}'`;
 const quote = s => String(s).includes('\\') ? `CONCAT(${String(s).split('\\').map(literal).join(',CHAR(92),')})` : literal(s);
 const sql = ['-- Generated from seven content/*.json sources. Applied migrations are immutable; revisions require a new migration.'];
+// V19 is a historical snapshot. Keep its retired Agent block verbatim; active content is checked against V22.
+const historical = readFileSync(destination, 'utf8').replaceAll('\r\n', '\n');
+const marker = slug => `INSERT INTO knowledge_points(module_id,slug,title,summary,learning_objectives,estimated_minutes,sort_order,status) SELECT id,'${slug}'`;
+const legacyAgents = historical.slice(historical.indexOf(marker('agents')), historical.indexOf(marker('mcp'))).trim();
+const legacyHash = createHash('sha256').update(legacyAgents).digest('hex');
+if (legacyHash !== '28daecd8eb5d68691c270d303ec70c9fed1451b35f7bcdbb157f453e898f06c0') throw Error(`Historical V19 Agent block changed: ${legacyHash}`);
 for (const course of courses) {
+  if (course.slug === 'agents') { sql.push(legacyAgents); continue; }
   const minutes = course.chapters.flatMap(c => c.lessons).reduce((n, l) => n + l.minutes, 0);
   sql.push(`INSERT INTO knowledge_points(module_id,slug,title,summary,learning_objectives,estimated_minutes,sort_order,status) SELECT id,${quote(course.slug)},${quote(course.title)},${quote(course.summary)},${quote(course.learningObjectives)},${minutes},1,'PUBLISHED' FROM learning_modules WHERE code=${quote(course.moduleCode)};`);
   course.chapters.forEach((chapter, index) => {
@@ -45,22 +54,22 @@ for (const course of courses) {
 }
 const output = `${sql.join('\n\n')}\n`;
 const metadata = '// Generated from course content by scripts/generate-remaining-courses.mjs.\n'
-  + 'export const courseCatalog: Record<string, { hint: string; download: string; stages: { year: string; label: string; topic: string }[] }> = '
+  + 'export const courseCatalog: Record<string, { hint: string; download: string | null; stages: { year: string; label: string; topic: string }[] }> = '
   + JSON.stringify(Object.fromEntries(allCourses.map(course => [course.slug, {
-    hint: course.slug === 'llm-app-dev' ? '沿开发流程学习，逐步完成自己的学习助手。' : '按章节学习，结合本地示例与测验检查理解。',
-    download: `/examples/${course.slug}.zip`,
+    hint: course.slug === 'agents' ? '沿研究助手循序渐进，主线讲清原理，深入阅读按需探索；已读记录不代表项目评测。' : course.slug === 'llm-app-dev' ? '沿开发流程学习，逐步完成自己的学习助手。' : '按章节学习，结合本地示例与测验检查理解。',
+    download: course.slug === 'agents' ? null : `/examples/${course.slug}.zip`,
     stages: course.chapters.map((c, index) => {
       const title = c.title.replace(/^\d+\s*·\s*/, '');
       const [label, topic] = title.split('：');
       return { year: String(index + 1).padStart(2, '0'), label, topic: topic ?? label };
     }),
   }])), null, 2) + ';\n';
-if (process.argv.includes('--check')) {
+if (process.argv.includes('--write-metadata')) {
+  writeFileSync(metadataPath, metadata);
+} else if (process.argv.includes('--check')) {
   if (readFileSync(destination, 'utf8').replaceAll('\r\n', '\n') !== output) throw Error('V19 differs from course sources; do not edit applied migrations.');
   if (readFileSync(metadataPath, 'utf8').replaceAll('\r\n', '\n') !== metadata) throw Error('Course metadata differs from content.');
-  console.log('Seven courses verified: 28 chapters, 56 lessons, 168 questions, 336 minutes.');
+  console.log('V19 historical snapshot and current course catalog verified; Agent content is maintained by V22.');
 } else {
-  if (existsSync(destination)) throw Error('V19 exists. Use --check; revisions require a new migration.');
-  writeFileSync(destination, output);
-  writeFileSync(metadataPath, metadata);
+  throw Error('V19 is immutable. Use --check or --write-metadata; content revisions require a new migration.');
 }

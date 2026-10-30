@@ -30,14 +30,14 @@ const startedIds = computed(() => new Set(progress.value?.sections.map(s => s.se
 const percent = computed(() => progress.value?.total ? Math.round(progress.value.completed / progress.value.total * 100) : 0);
 // Serialize writes so rapid navigation cannot reorder the latest visited lesson.
 let progressWrites = Promise.resolve();
-function saveProgress(id: number): Promise<boolean> {
+function saveProgress(id: number, completed?: boolean): Promise<boolean> {
   const slug = String(route.params.slug);
   const current = requestId;
   let succeeded = false;
   const task = progressWrites.then(async () => {
     try {
       const result = await api<Progress>(`/learning/progress/${encodeURIComponent(slug)}/sections/${id}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{}',
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(completed === undefined ? {} : { completed }),
       });
       succeeded = true;
       if (current === requestId) { progress.value = result; progressError.value = ''; }
@@ -166,7 +166,7 @@ watch(() => route.query.section, () => { if (point.value && !loading.value) rest
           </template>
         </nav>
         <p class="reading-hint">{{ courseInfo?.hint ?? '沿时间线阅读，理解每次技术转折。' }}</p>
-        <a v-if="courseInfo" class="course-download" :href="courseInfo.download" download>↓ 下载配套 Python 示例 <span>含运行说明 · 本地运行</span></a>
+        <a v-if="courseInfo?.download" class="course-download" :href="courseInfo.download" download>↓ 下载配套 Python 示例 <span>含运行说明 · 本地运行</span></a>
       </aside>
       <main ref="article" class="reading-main">
         <div class="reading-content">
@@ -182,6 +182,7 @@ watch(() => route.query.section, () => { if (point.value && !loading.value) rest
             </div>
             <details v-if="hasQuiz" :key="selected.id" class="lesson-check" @toggle="showQuiz = ($event.target as HTMLDetailsElement).open"><summary><span>课后测验</span><small>{{ completedIds.has(selected.id) ? '✓ 已通过 · 再练一次' : '读完后，检验一下理解 →' }}</small></summary><LessonQuiz v-if="showQuiz" :slug="String(route.params.slug)" :section-id="selected.id" @passed="refreshProgress" /></details>
             <footer class="lesson-navigation" :class="{ 'story-navigation': isHistoricalChapter }">
+              <button v-if="route.params.slug === 'agents' && !hasQuiz" class="reading-action" :disabled="completedIds.has(selected.id)" @click="saveProgress(selected.id, true)">{{ completedIds.has(selected.id) ? '✓ 已读' : '标记为已读' }}</button>
               <div v-if="isHistoricalChapter && canContinue" class="story-next"><span>下一节</span><strong>{{ lessons[position + 1]?.title }}</strong></div>
               <div v-if="takeaways.length && !isHistoricalChapter" class="lesson-recap"><ReadingIcon name="check"/><div><strong>本节要点回顾</strong><ul><li v-for="title in takeaways" :key="title">{{ title }}</li></ul></div></div>
               <div class="lesson-actions"><button v-if="position > 0" class="reading-action previous" @click="select(lessons[position - 1]!.id)">← 上一节</button>

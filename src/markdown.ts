@@ -1,5 +1,7 @@
 import MarkdownIt from 'markdown-it';
 import cjkFriendly from 'markdown-it-cjk-friendly';
+import { parseAgentInteraction } from './agent-interaction.ts';
+import type { AgentInteraction } from './agent-interaction.ts';
 
 // Keep authored HTML as text; markdown-it also rejects unsafe link protocols.
 const markdown = new MarkdownIt({ html: false, linkify: false, typographer: false }).use(cjkFriendly);
@@ -18,7 +20,7 @@ export function renderMarkdown(source: string): string {
 // Both reading layouts use the same renderer with authored HTML disabled.
 export type LessonDiagram = { kind: 'flow' | 'compare'; steps: { title: string; description: string }[] };
 
-export function renderLessonSections(source: string): { title: string; html: string; contentHtml: string; diagrams: LessonDiagram[] }[] {
+export function renderLessonSections(source: string): { title: string; html: string; contentHtml: string; diagrams: LessonDiagram[]; interactions: AgentInteraction[]; interactionError: boolean }[] {
   const tokens = markdown.parse(source, {});
   const groups: { start: number; title: string }[] = [{ start: 0, title: '' }];
   for (let i = 0; i < tokens.length; i++) {
@@ -30,9 +32,18 @@ export function renderLessonSections(source: string): { title: string; html: str
     const sectionTokens = tokens.slice(group.start, groups[index + 1]?.start);
     const html = markdown.renderer.render(sectionTokens, markdown.options, {});
     const diagrams: LessonDiagram[] = [];
+    const interactions: AgentInteraction[] = [];
+    let interactionError = false;
     const contentTokens = (group.title ? sectionTokens.slice(3) : sectionTokens).filter(token => {
       const kind = token.info.trim();
-      if (!group.title || group.title === '延伸阅读' || token.type !== 'fence' || token.level !== 0 || (kind !== 'flow' && kind !== 'compare')) return true;
+      if (group.title && token.type === 'fence' && token.level === 0 && kind === 'agent') {
+        const interaction = parseAgentInteraction(token.content);
+        if (interaction) { interactions.push(interaction); return false; }
+        // Interactive configuration is not lesson prose. Never expose broken JSON to learners.
+        interactionError = true;
+        return false;
+      }
+      if (!group.title || group.title === '延伸阅读' || group.title === '深入阅读' || token.type !== 'fence' || token.level !== 0 || (kind !== 'flow' && kind !== 'compare')) return true;
       const rows = token.content.trim().split('\n').map(line => line.split('|').map(cell => cell.trim()));
       // Malformed diagrams stay visible as code rather than silently losing content.
       if (rows.length < 2 || rows.length > 4 || rows.some(row => row.length !== 2 || !row[0] || !row[1])) return true;
@@ -40,7 +51,7 @@ export function renderLessonSections(source: string): { title: string; html: str
       return false;
     });
     const contentHtml = markdown.renderer.render(contentTokens, markdown.options, {});
-    return { title: group.title, html, contentHtml, diagrams };
+    return { title: group.title, html, contentHtml, diagrams, interactions, interactionError };
   });
 }
 

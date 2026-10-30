@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="upstream-source" content="https://xueai.miyang.cn/slides/7-2d.html">
+<title>MCP：2025 版传输与更早方式对照 · LearnAI</title>
+<link rel="stylesheet" href="../shared/lesson.css">
+<style>
+/* ── Before / After 对比 ── */
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.compare-col{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow-card);display:flex;flex-direction:column}
+.compare-label{font-size:14px;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.compare-label .badge{padding:3px 10px;border-radius:6px;font-size:12px;font-weight:800}
+
+/* 图 */
+.diagram{display:flex;align-items:center;justify-content:center}
+.diagram svg{width:100%;height:auto}
+.node-box{rx:10;ry:10;stroke-width:1.5}
+.node-label{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;font-size:13px;font-weight:700;text-anchor:middle;dominant-baseline:central}
+.conn-line{stroke-width:2;fill:none;opacity:.7;stroke-linecap:round}
+.conn-line-mcp{stroke:var(--success);stroke-width:2.5;opacity:.9}
+
+/* stats */
+.stats-row{display:flex;gap:12px;margin-top:10px;flex-wrap:wrap}
+.stat-chip{padding:6px 12px;border-radius:8px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px}
+
+/* ── 传输方式 ── */
+.transport-body{display:grid;grid-template-columns:280px 1fr;gap:16px;align-items:start}
+
+.t-cards{display:flex;flex-direction:column;gap:8px}
+.t-card{padding:12px 14px;border-radius:10px;border:1.5px solid var(--border);background:var(--card);cursor:pointer;transition:all .2s}
+.t-card:hover{border-color:rgba(0,102,255,.3);background:rgba(0,102,255,.02)}
+.t-card.active{border-color:var(--accent);background:rgba(0,102,255,.04);box-shadow:0 2px 8px rgba(0,102,255,.1)}
+.t-card-hd{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.t-card-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.t-card-name{font-size:14px;font-weight:800;color:var(--text)}
+.t-card-tag{font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;margin-left:auto}
+.t-card-desc{font-size:12px;color:var(--sub);line-height:1.5}
+
+/* 详情 */
+.t-detail{display:flex;flex-direction:column;gap:10px;min-width:0}
+.t-detail-title{font-size:15px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px}
+.t-detail-quote{font-size:14px;color:var(--sub);line-height:1.6;padding:10px 14px;background:var(--card);border-radius:10px;border:1px solid var(--border)}
+
+/* 数据流动画 */
+.flow-box{background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:14px 18px;position:relative;overflow:hidden;min-height:80px}
+.flow-row{display:flex;align-items:center;gap:12px;position:relative}
+.flow-node{padding:6px 14px;border-radius:8px;font-size:13px;font-weight:700;flex-shrink:0;z-index:1}
+.flow-track{flex:1;height:4px;border-radius:2px;background:rgba(0,0,0,.05);position:relative;overflow:hidden}
+.flow-dot{width:10px;height:10px;border-radius:50%;position:absolute;top:-3px;opacity:0}
+@keyframes flowRight{0%{left:0;opacity:1}100%{left:calc(100% - 10px);opacity:1}}
+@keyframes flowLeft{0%{left:calc(100% - 10px);opacity:1}100%{left:0;opacity:1}}
+.flow-dot.go-right{animation:flowRight 1.2s ease-in-out infinite}
+.flow-dot.go-left{animation:flowLeft 1.2s ease-in-out .6s infinite}
+.flow-dot.go-left-2{animation:flowLeft 1.2s ease-in-out 1s infinite}
+.flow-dot.go-left-3{animation:flowLeft 1.2s ease-in-out 1.4s infinite}
+
+/* 优缺点 */
+.pc-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.pc-item{padding:6px 10px;border-radius:8px;font-size:13px;line-height:1.5;display:flex;align-items:flex-start;gap:6px}
+.pc-icon{flex-shrink:0;font-size:14px;margin-top:1px}
+
+/* 决策卡 */
+.dec-card{background:rgba(0,102,255,.04);border:1.5px solid rgba(0,102,255,.2);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--text);line-height:1.6}
+.dec-card b{color:var(--accent)}
+
+@media (max-width:768px){
+  .compare{grid-template-columns:1fr}
+  .transport-body{grid-template-columns:1fr}
+  .pc-grid{grid-template-columns:1fr}
+}
+
+:root{--green:var(--success);--orange:var(--amber);--red:var(--danger);--muted:var(--sub)}.adaptation-note{font-size:13px;line-height:1.75;color:var(--sub);padding:12px 15px;border:1px solid var(--border);border-radius:10px;margin:0 0 18px;background:var(--card)}pre{max-width:100%;overflow:auto}.tank-slider{min-height:32px}</style>
+</head>
+<body>
+<!-- Copyright (c) 2026 洛小山 · Miyang Tech (Zhuhai Hengqin) Co., Ltd.
+     Adapted by LearnAI from the public itshen/learn-ai source, AGPL-3.0. -->
+<article class="lesson wide">
+<p class="adaptation-note">本例按 <a href="https://modelcontextprotocol.io/specification/2025-06-18/basic/transports" target="_blank" rel="noopener noreferrer">MCP 2025-06-18 版传输规范</a>对照 stdio / Streamable HTTP 与 2024 版 HTTP+SSE。后续版本的请求和连接规则可能变化，接入时应核对双方使用的版本。所有箭头只是 CSS 示意，不执行真实 MCP 握手或网络请求。</p>
+<div class="sec-label">Before / After 对比</div>
+  <div class="compare" id="compareArea">
+    <!-- LEFT: before MCP -->
+    <div class="compare-col">
+      <div class="compare-label">
+        <span class="badge" style="background:rgba(220,38,38,.08);color:var(--danger)">Before</span>
+        没有 MCP 的世界
+      </div>
+      <div class="diagram" id="diagramBefore">
+        <svg viewBox="0 0 420 200" preserveAspectRatio="xMidYMid meet">
+          <rect class="node-box" x="10" y="15" width="90" height="36" fill="rgba(124,58,237,.06)" stroke="var(--purple)"/>
+          <text class="node-label" x="55" y="33" fill="var(--purple)">Cursor</text>
+          <rect class="node-box" x="10" y="82" width="90" height="36" fill="rgba(124,58,237,.06)" stroke="var(--purple)"/>
+          <text class="node-label" x="55" y="100" fill="var(--purple)">Alice</text>
+          <rect class="node-box" x="10" y="150" width="90" height="36" fill="rgba(124,58,237,.06)" stroke="var(--purple)"/>
+          <text class="node-label" x="55" y="168" fill="var(--purple)">Claude</text>
+
+          <rect class="node-box" x="320" y="15" width="90" height="36" fill="rgba(8,145,178,.06)" stroke="var(--cyan)"/>
+          <text class="node-label" x="365" y="33" fill="var(--cyan)">GitHub</text>
+          <rect class="node-box" x="320" y="82" width="90" height="36" fill="rgba(8,145,178,.06)" stroke="var(--cyan)"/>
+          <text class="node-label" x="365" y="100" fill="var(--cyan)">Slack</text>
+          <rect class="node-box" x="320" y="150" width="90" height="36" fill="rgba(8,145,178,.06)" stroke="var(--cyan)"/>
+          <text class="node-label" x="365" y="168" fill="var(--cyan)">Database</text>
+
+          <path class="conn-line" d="M100,33 C210,33 210,33 320,33" stroke="#dc2626"/>
+          <path class="conn-line" d="M100,33 C180,33 240,100 320,100" stroke="#d97706"/>
+          <path class="conn-line" d="M100,33 C180,45 240,155 320,168" stroke="#7c3aed"/>
+          <path class="conn-line" d="M100,100 C180,100 240,33 320,33" stroke="#0891b2"/>
+          <path class="conn-line" d="M100,100 C210,100 210,100 320,100" stroke="#16a34a"/>
+          <path class="conn-line" d="M100,100 C180,110 240,155 320,168" stroke="#ea580c"/>
+          <path class="conn-line" d="M100,168 C180,155 240,33 320,33" stroke="#8e8e93"/>
+          <path class="conn-line" d="M100,168 C180,168 240,100 320,100" stroke="#a855f7"/>
+          <path class="conn-line" d="M100,168 C210,168 210,168 320,168" stroke="#f59e0b"/>
+        </svg>
+      </div>
+      <div class="stats-row">
+        <div class="stat-chip" style="background:rgba(220,38,38,.06);color:var(--danger)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          9 条专属对接
+        </div>
+        <div class="stat-chip" style="background:rgba(220,38,38,.06);color:var(--danger)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 8v4m0 4h.01"/><circle cx="12" cy="12" r="10"/></svg>
+          新增 1 个工具 → +3 条对接
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: with MCP -->
+    <div class="compare-col">
+      <div class="compare-label">
+        <span class="badge" style="background:rgba(22,163,74,.08);color:var(--success)">After</span>
+        有 MCP 的世界
+      </div>
+      <div class="diagram" id="diagramAfter">
+        <svg viewBox="0 0 420 200" preserveAspectRatio="xMidYMid meet">
+          <rect class="node-box" x="10" y="15" width="90" height="36" fill="rgba(124,58,237,.06)" stroke="var(--purple)"/>
+          <text class="node-label" x="55" y="33" fill="var(--purple)">Cursor</text>
+          <rect class="node-box" x="10" y="82" width="90" height="36" fill="rgba(124,58,237,.06)" stroke="var(--purple)"/>
+          <text class="node-label" x="55" y="100" fill="var(--purple)">Alice</text>
+          <rect class="node-box" x="10" y="150" width="90" height="36" fill="rgba(124,58,237,.06)" stroke="var(--purple)"/>
+          <text class="node-label" x="55" y="168" fill="var(--purple)">Claude</text>
+
+          <rect x="175" y="60" width="70" height="80" rx="12" ry="12" fill="rgba(22,163,74,.08)" stroke="var(--success)" stroke-width="2"/>
+          <text x="210" y="95" font-family="-apple-system,BlinkMacSystemFont,'PingFang SC',sans-serif" font-size="12" font-weight="800" fill="var(--success)" text-anchor="middle" dominant-baseline="central">MCP</text>
+          <text x="210" y="115" font-family="-apple-system,BlinkMacSystemFont,'PingFang SC',sans-serif" font-size="10" fill="var(--success)" text-anchor="middle" dominant-baseline="central" opacity=".7">标准协议</text>
+
+          <rect class="node-box" x="320" y="15" width="90" height="36" fill="rgba(8,145,178,.06)" stroke="var(--cyan)"/>
+          <text class="node-label" x="365" y="33" fill="var(--cyan)">GitHub</text>
+          <rect class="node-box" x="320" y="82" width="90" height="36" fill="rgba(8,145,178,.06)" stroke="var(--cyan)"/>
+          <text class="node-label" x="365" y="100" fill="var(--cyan)">Slack</text>
+          <rect class="node-box" x="320" y="150" width="90" height="36" fill="rgba(8,145,178,.06)" stroke="var(--cyan)"/>
+          <text class="node-label" x="365" y="168" fill="var(--cyan)">Database</text>
+
+          <line x1="100" y1="33" x2="175" y2="80" class="conn-line conn-line-mcp"/>
+          <line x1="100" y1="100" x2="175" y2="100" class="conn-line conn-line-mcp"/>
+          <line x1="100" y1="168" x2="175" y2="120" class="conn-line conn-line-mcp"/>
+          <line x1="245" y1="80" x2="320" y2="33" class="conn-line conn-line-mcp"/>
+          <line x1="245" y1="100" x2="320" y2="100" class="conn-line conn-line-mcp"/>
+          <line x1="245" y1="120" x2="320" y2="168" class="conn-line conn-line-mcp"/>
+        </svg>
+      </div>
+      <div class="stats-row">
+        <div class="stat-chip" style="background:rgba(22,163,74,.06);color:var(--success)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+          6 条标准连接
+        </div>
+        <div class="stat-chip" style="background:rgba(22,163,74,.06);color:var(--success)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14m-7-7h14"/></svg>
+          新增 1 个工具 → 只需 +1 条适配
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec-label">2025 版与更早传输对照 · 点击查看数据流动</div>
+  <div class="transport-body  ">
+    <div class="t-cards" id="tCards">
+      <div class="t-card active" onclick="pickTransport(0)">
+        <div class="t-card-hd">
+          <div class="t-card-icon" style="background:rgba(124,58,237,.08);color:var(--purple)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          </div>
+          <span class="t-card-name">stdio</span>
+          <span class="t-card-tag" style="background:rgba(124,58,237,.08);color:var(--purple)">本地进程</span>
+        </div>
+        <div class="t-card-desc">Agent 启动一个本地程序，通过标准输入输出通信</div>
+      </div>
+      <div class="t-card" onclick="pickTransport(1)">
+        <div class="t-card-hd">
+          <div class="t-card-icon" style="background:rgba(8,145,178,.08);color:var(--cyan)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+          </div>
+          <span class="t-card-name">旧 HTTP+SSE</span>
+          <span class="t-card-tag" style="background:rgba(8,145,178,.08);color:var(--cyan)">历史方式</span>
+        </div>
+        <div class="t-card-desc">历史请求 / 事件通道；用于理解兼容迁移</div>
+      </div>
+      <div class="t-card" onclick="pickTransport(2)">
+        <div class="t-card-hd">
+          <div class="t-card-icon" style="background:rgba(22,163,74,.08);color:var(--success)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>
+          </div>
+          <span class="t-card-name">Streamable HTTP</span>
+          <span class="t-card-tag" style="background:rgba(22,163,74,.08);color:var(--success)">远程 HTTP</span>
+        </div>
+        <div class="t-card-desc">HTTP POST 请求，可用 JSON 或 SSE 返回</div>
+      </div>
+    </div>
+    <div class="t-detail" id="tDetail"></div>
+  </div>
+
+  <div class="sec-label ">Takeaway</div>
+  <div class="l-callout ">
+    <b>本例观察</b>　MCP 标准化客户端与服务端的通信。复用仍取决于协议版本、能力支持和授权；图中的 MCP 是协议层示意，不代表必需的中心网关。本例采用的 2025 版传输与更早的 HTTP+SSE 应分开理解。
+  </div>
+</article>
+<script src="../shared/embed.js"></script>
+<script src="../shared/lesson.js"></script>
+<script>
+var TRANSPORTS = [
+  {
+    "name": "stdio",
+    "color": "var(--purple)",
+    "bg": "rgba(124,58,237,.06)",
+    "title": "stdio — 本地进程通信",
+    "quote": "客户端通常启动本地 MCP Server，通过标准输入输出交换 JSON-RPC 消息。通道本地并不等于自动安全，仍需检查进程来源、权限和数据访问。",
+    "agentLabel": "MCP 客户端",
+    "agentColor": "var(--purple)",
+    "agentBg": "rgba(124,58,237,.1)",
+    "toolLabel": "本地 MCP Server",
+    "toolColor": "var(--cyan)",
+    "toolBg": "rgba(8,145,178,.1)",
+    "dotColor": "var(--purple)",
+    "sendLabel": "stdin：请求 / 通知",
+    "recvLabel": "stdout：响应 / 消息",
+    "pros": [
+      {
+        "icon": "✓",
+        "text": "适合本地子进程集成",
+        "bg": "rgba(22,163,74,.04)"
+      },
+      {
+        "icon": "✓",
+        "text": "不需开放 HTTP 监听端口",
+        "bg": "rgba(22,163,74,.04)"
+      }
+    ],
+    "cons": [
+      {
+        "icon": "!",
+        "text": "仍需进程、权限与日志管理",
+        "bg": "rgba(215,119,6,.04)"
+      }
+    ],
+    "useCase": "本地开发工具、受控文件或程序能力",
+    "decision": "选择取决于运行位置与客户端支持；本地程序也必须受权限约束。"
+  },
+  {
+    "name": "旧 HTTP+SSE",
+    "color": "var(--cyan)",
+    "bg": "rgba(8,145,178,.06)",
+    "title": "旧 HTTP+SSE — 历史兼容方式",
+    "quote": "历史方式使用 SSE 接收服务端消息，客户端经单独的 HTTP POST 端点发送消息。它不是只能问一次、之后再也不能发消息；不要与 Streamable HTTP 中可能使用的 SSE 响应混淆。",
+    "agentLabel": "MCP 客户端",
+    "agentColor": "var(--cyan)",
+    "agentBg": "rgba(8,145,178,.1)",
+    "toolLabel": "历史远程 Server",
+    "toolColor": "var(--success)",
+    "toolBg": "rgba(22,163,74,.1)",
+    "dotColor": "var(--cyan)",
+    "sendLabel": "独立 POST：客户端消息",
+    "recvLabel": "SSE：服务端消息",
+    "pros": [
+      {
+        "icon": "✓",
+        "text": "了解已有服务的兼容路径",
+        "bg": "rgba(22,163,74,.04)"
+      }
+    ],
+    "cons": [
+      {
+        "icon": "!",
+        "text": "历史方式，新集成应核对版本与迁移支持",
+        "bg": "rgba(215,119,6,.04)"
+      }
+    ],
+    "useCase": "已有历史 MCP 服务的兼容",
+    "decision": "本卡用于历史对照，不将它与本例采用的2025版两种标准传输并列为三种同等选择。"
+  },
+  {
+    "name": "Streamable HTTP",
+    "color": "var(--success)",
+    "bg": "rgba(22,163,74,.06)",
+    "title": "Streamable HTTP — HTTP 请求与可选事件流",
+    "quote": "客户端用 HTTP POST 发送 JSON-RPC 消息，服务端可返回 JSON 或 SSE 流；还可通过 GET 建立可选的服务端事件流。不是一根任意双向写入的 WebSocket 通道。",
+    "agentLabel": "MCP 客户端",
+    "agentColor": "var(--success)",
+    "agentBg": "rgba(22,163,74,.1)",
+    "toolLabel": "远程 MCP Server",
+    "toolColor": "var(--amber)",
+    "toolBg": "rgba(217,119,6,.1)",
+    "dotColor": "var(--success)",
+    "sendLabel": "HTTP POST：消息",
+    "recvLabel": "JSON / SSE；可选 GET SSE",
+    "pros": [
+      {
+        "icon": "✓",
+        "text": "适合远程 HTTP 服务集成",
+        "bg": "rgba(22,163,74,.04)"
+      },
+      {
+        "icon": "✓",
+        "text": "可按响应需要使用事件流",
+        "bg": "rgba(22,163,74,.04)"
+      }
+    ],
+    "cons": [
+      {
+        "icon": "!",
+        "text": "需正确处理授权、Origin 校验与连接恢复",
+        "bg": "rgba(215,119,6,.04)"
+      }
+    ],
+    "useCase": "支持相应协议版本的远程工具服务",
+    "decision": "根据客户端、服务端协议版本与部署要求选择；本图只模拟消息流，不建立真实连接。"
+  }
+];
+
+var curTransport = 0;
+
+function pickTransport(idx) {
+  curTransport = idx;
+  var cards = document.querySelectorAll('.t-card');
+  for (var i = 0; i < cards.length; i++) {
+    cards[i].className = 't-card' + (i === idx ? ' active' : '');
+  }
+  renderTransportDetail(idx);
+}
+
+function renderTransportDetail(idx) {
+  var t = TRANSPORTS[idx];
+  var h = '';
+
+  h += '<div class="t-detail-title"><span style="color:' + t.color + '">' + t.title + '</span></div>';
+  h += '<div class="t-detail-quote">' + t.quote + '</div>';
+
+  h += '<div class="flow-box">';
+  h += '<div class="flow-row">';
+  h += '<div class="flow-node" style="background:' + t.agentBg + ';color:' + t.agentColor + '">' + t.agentLabel + '</div>';
+  h += '<div style="flex:1;display:flex;flex-direction:column;gap:8px">';
+
+  h += '<div style="display:flex;align-items:center;gap:8px">';
+  h += '<span style="font-size:11px;color:var(--sub);min-width:140px;text-align:right">' + t.sendLabel + '</span>';
+  h += '<div class="flow-track"><div class="flow-dot go-right" style="background:' + t.dotColor + '"></div></div>';
+  h += '<span style="font-size:12px;color:var(--sub)">→</span>';
+  h += '</div>';
+
+  h += '<div style="display:flex;align-items:center;gap:8px">';
+  h += '<span style="font-size:11px;color:var(--sub);min-width:140px;text-align:right">' + t.recvLabel + '</span>';
+  h += '<div class="flow-track">';
+  h += '<div class="flow-dot go-left" style="background:' + t.toolColor + '"></div>';
+  if (idx === 1) {
+    h += '<div class="flow-dot go-left-2" style="background:' + t.toolColor + '"></div>';
+    h += '<div class="flow-dot go-left-3" style="background:' + t.toolColor + '"></div>';
+  }
+  h += '</div>';
+  h += '<span style="font-size:12px;color:var(--sub)">←</span>';
+  h += '</div>';
+
+  h += '</div>';
+  h += '<div class="flow-node" style="background:' + t.toolBg + ';color:' + t.toolColor + '">' + t.toolLabel + '</div>';
+  h += '</div>';
+  h += '</div>';
+
+  h += '<div class="pc-grid">';
+  h += '<div style="display:flex;flex-direction:column;gap:4px">';
+  h += '<div style="font-size:12px;font-weight:800;color:var(--success);margin-bottom:2px">优点</div>';
+  for (var i = 0; i < t.pros.length; i++) {
+    h += '<div class="pc-item" style="background:' + t.pros[i].bg + '"><span class="pc-icon">' + t.pros[i].icon + '</span><span>' + t.pros[i].text + '</span></div>';
+  }
+  h += '</div>';
+  h += '<div style="display:flex;flex-direction:column;gap:4px">';
+  h += '<div style="font-size:12px;font-weight:800;color:var(--amber);margin-bottom:2px">注意</div>';
+  for (var j = 0; j < t.cons.length; j++) {
+    h += '<div class="pc-item" style="background:' + t.cons[j].bg + '"><span class="pc-icon">' + t.cons[j].icon + '</span><span>' + t.cons[j].text + '</span></div>';
+  }
+  h += '</div>';
+  h += '<div style="display:flex;flex-direction:column;gap:4px">';
+  h += '<div style="font-size:12px;font-weight:800;color:var(--cyan);margin-bottom:2px">适合场景</div>';
+  h += '<div class="pc-item" style="background:rgba(8,145,178,.04)"><span>' + t.useCase + '</span></div>';
+  h += '</div>';
+  h += '</div>';
+
+  h += '<div class="dec-card"><b>' + t.decision + '</b></div>';
+
+  document.getElementById('tDetail').innerHTML = h;
+}
+
+pickTransport(0);
+</script>
+</body>
+</html>

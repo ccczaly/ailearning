@@ -1,0 +1,146 @@
+{
+  "version": 32,
+  "chapters": [
+    "01 · 认识 Agent",
+    "02 · Agent 的组成与运行循环",
+    "03 · 如何定义一个可执行的任务",
+    "04 · 工具与工具调用",
+    "05 · 上下文工程",
+    "06 · 状态与记忆",
+    "07 · 规则、权限与信任边界",
+    "08 · 失败处理与恢复",
+    "09 · 执行记录、成本与系统取舍",
+    "10 · 把原理连接成完整系统"
+  ],
+  "lessons": [
+    {
+      "key": "agent-introduction",
+      "title": "1.1 AI 会回答，为什么还需要 Agent？"
+    },
+    {
+      "key": "agent-workflow",
+      "title": "1.2 聊天机器人、工作流与 Agent"
+    },
+    {
+      "key": "agent-fit",
+      "title": "1.3 什么时候需要 Agent"
+    },
+    {
+      "key": "agent-components",
+      "title": "2.1 Agent 的基本组成"
+    },
+    {
+      "key": "agent-loop",
+      "title": "2.2 一次完整的运行循环"
+    },
+    {
+      "key": "agent-stop",
+      "title": "2.3 继续、等待与停止"
+    },
+    {
+      "key": "task-contract",
+      "title": "3.1 目标、约束与交付物"
+    },
+    {
+      "key": "task-clarification",
+      "title": "3.2 澄清与合理假设"
+    },
+    {
+      "key": "task-planning",
+      "title": "3.3 计划、执行与调整"
+    },
+    {
+      "key": "tool-schema",
+      "title": "4.1 工具是什么"
+    },
+    {
+      "key": "tool-dispatch",
+      "title": "4.2 参数、返回值与错误"
+    },
+    {
+      "key": "tool-design",
+      "title": "4.3 工具设计如何影响 Agent"
+    },
+    {
+      "key": "context-input",
+      "title": "5.1 上下文里有哪些信息"
+    },
+    {
+      "key": "context-budget",
+      "title": "5.2 为什么不是信息越多越好"
+    },
+    {
+      "key": "context-retrieval",
+      "title": "5.3 选择、摘要与检索"
+    },
+    {
+      "key": "task-state",
+      "title": "6.1 什么是状态"
+    },
+    {
+      "key": "agent-memory",
+      "title": "6.2 什么是记忆"
+    },
+    {
+      "key": "memory-conflicts",
+      "title": "6.3 记忆的更新与冲突"
+    },
+    {
+      "key": "agent-policy",
+      "title": "7.1 什么是 Policy"
+    },
+    {
+      "key": "approval-state",
+      "title": "7.2 提示词约束与程序约束"
+    },
+    {
+      "key": "untrusted-content",
+      "title": "7.3 外部内容为什么不能当成指令"
+    },
+    {
+      "key": "failure-layers",
+      "title": "8.1 失败发生在哪一层"
+    },
+    {
+      "key": "idempotency",
+      "title": "8.2 重试、换方法与询问用户"
+    },
+    {
+      "key": "state-recovery",
+      "title": "8.3 中断后如何继续"
+    },
+    {
+      "key": "agent-trace",
+      "title": "9.1 如何读懂一次执行记录"
+    },
+    {
+      "key": "loop-budget",
+      "title": "9.2 时间、费用与循环预算"
+    },
+    {
+      "key": "agent-organization",
+      "title": "9.3 工作流、单 Agent 与多 Agent"
+    },
+    {
+      "key": "agent-project",
+      "title": "10.1 完整拆解一个研究助手"
+    },
+    {
+      "key": "system-conditions",
+      "title": "10.2 改变一个条件，系统会怎样变化"
+    },
+    {
+      "key": "system-design",
+      "title": "10.3 从需求走向设计"
+    }
+  ],
+  "introBodySha256": "98f896765fe65840142767c1612bb85af3bb7c1822afa47964ec23909536788c",
+  "introAssets": {
+    "src/components/AgentIntroLab.vue": "9999207babd5a22efd0416d5f27178917ee9e09b6374152a8ff79344318b981b",
+    "public/demos/agent-intro/index.html": "9e6f481831dae83bd9edbf63c72ae55c90580e4ece81b8ce3e94ec977a6dc19c",
+    "public/demos/agent-intro/demo.css": "61f40f0495133f9c68becab0c07d99db3cb2dbef35a359870e93a4af3215045e",
+    "public/demos/agent-intro/player.js": "a1d92610c87c4947e6d9153780bfa4ed42de1962c5ed309f7cf71a3c8ae64a25",
+    "public/demos/agent-intro/scenario.js": "da4ba83abe7670bbebca01aae88bf20f1884db11855c5b78b0e3e7fbc1f510f4",
+    "public/demos/agent-intro/demo.js": "b2f77cc8cdcbdcbe3ba78eba0d6ac5a1573fa6a21dbbdb793ed6130ac3a8d8b7"
+  }
+}

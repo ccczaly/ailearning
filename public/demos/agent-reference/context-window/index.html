@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="upstream-source" content="https://xueai.miyang.cn/slides/7-3a.html">
+<title>上下文窗口：示例消息的占用 · LearnAI</title>
+<link rel="stylesheet" href="../shared/lesson.css">
+<style>
+/* ── 布局：工作台 + 统计面板 ── */
+.mem-layout{display:grid;grid-template-columns:1fr 260px;gap:20px;align-items:start}
+
+/* 进度条 */
+.progress-wrap{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px 18px;box-shadow:var(--shadow-card);margin-bottom:16px}
+.progress-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;flex-wrap:wrap}
+.progress-title{font-size:14px;font-weight:700;color:var(--text)}
+.progress-nums{font-size:13px;color:var(--sub);font-weight:600}
+.progress-nums span{font-weight:800}
+.progress-track{height:10px;background:rgba(0,0,0,.05);border-radius:5px;overflow:hidden;position:relative}
+.progress-fill{height:100%;border-radius:5px;transition:width .5s ease, background .3s ease;width:0;background:var(--success)}
+.progress-warn{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:11px;font-weight:800;color:var(--danger);opacity:0;transition:opacity .3s}
+.progress-warn.show{opacity:1}
+
+/* 桌面区域 */
+.desk-wrap{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-card)}
+.desk-label{padding:10px 18px;font-size:13px;font-weight:800;color:var(--sub);letter-spacing:.5px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.desk-label-icon{font-size:15px}
+.desk{padding:12px 16px;display:flex;flex-direction:column;gap:6px;background:linear-gradient(180deg,rgba(240,237,230,.5) 0%,rgba(229,226,218,.3) 100%);min-height:160px}
+
+/* 消息块 */
+.msg-block{border-radius:10px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;opacity:0;transform:translateY(8px) scale(.98);transition:all .4s cubic-bezier(.4,.0,.2,1);border:1.5px solid transparent}
+.msg-block.show{opacity:1;transform:translateY(0) scale(1)}
+.msg-left{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.msg-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex-shrink:0;color:white}
+.msg-info{min-width:0;flex:1}
+.msg-role{font-size:12px;font-weight:800;letter-spacing:.3px;margin-bottom:1px}
+.msg-text{font-size:13px;color:var(--sub);line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:520px}
+.msg-tokens{font-size:13px;font-weight:800;white-space:nowrap;padding:3px 10px;border-radius:6px;flex-shrink:0}
+.msg-size{display:none;height:4px;border-radius:2px;margin-top:6px;background:rgba(0,0,0,.05);overflow:hidden;transition:all .3s}
+.msg-block.show .msg-size{display:block}
+.msg-size-fill{height:100%;border-radius:2px;transition:width .5s ease}
+
+/* 决策卡片 */
+.decision-area{margin-top:12px;min-height:20px}
+.dec-card{background:rgba(0,102,255,.04);border:1.5px solid rgba(0,102,255,.2);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--text);line-height:1.6;opacity:0;transform:translateY(4px);transition:all .35s}
+.dec-card.show{opacity:1;transform:translateY(0)}
+.dec-card b{color:var(--accent)}
+
+/* ── 右侧统计面板 ── */
+.panel{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-card);position:sticky;top:16px}
+.panel-section{padding:14px 16px;border-bottom:1px solid var(--border)}
+.panel-title{font-size:12px;font-weight:800;color:var(--sub);letter-spacing:.5px;margin-bottom:10px}
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0}
+.stat-label{font-size:13px;color:var(--sub)}
+.stat-val{font-size:15px;font-weight:800;color:var(--text)}
+.stat-val.warn{color:var(--amber)}
+.stat-val.danger{color:var(--danger)}
+
+/* 费用计算器 */
+.cost-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-top:1px dashed var(--border);margin-top:4px}
+.cost-label{font-size:13px;color:var(--sub)}
+.cost-val{font-size:15px;font-weight:800;color:var(--accent)}
+
+/* 消息列表 */
+.msg-list{padding:10px 14px;display:flex;flex-direction:column;gap:4px;max-height:260px;overflow-y:auto}
+.msg-chip{display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:6px;font-size:12px;opacity:0;transform:translateX(8px);transition:all .3s}
+.msg-chip.show{opacity:1;transform:translateX(0)}
+.msg-chip-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.msg-chip-role{font-weight:700;min-width:32px}
+.msg-chip-tk{color:var(--sub);font-weight:600;margin-left:auto}
+
+.hint-line{font-size:13px;color:var(--sub);margin-top:10px}
+.btn-reset{padding:6px 14px;border-radius:8px;font-size:13px;font-weight:700;border:1px solid var(--border);background:var(--card);color:var(--sub);cursor:pointer;font-family:inherit;min-height:32px}
+
+/* 桌面溢出警告 */
+@keyframes pulse-warn{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.3)}50%{box-shadow:0 0 0 8px rgba(220,38,38,0)}}
+.desk.overflow{background:linear-gradient(180deg,rgba(220,38,38,.04) 0%,rgba(220,38,38,.08) 100%);animation:pulse-warn 2s ease infinite}
+
+@media (max-width:768px){
+  .mem-layout{grid-template-columns:1fr}
+  .panel{position:static}
+  .msg-text{max-width:none}
+}
+
+:root{--green:var(--success);--orange:var(--amber);--red:var(--danger);--muted:var(--sub)}.adaptation-note{font-size:13px;line-height:1.75;color:var(--sub);padding:12px 15px;border:1px solid var(--border);border-radius:10px;margin:0 0 18px;background:var(--card)}pre{max-width:100%;overflow:auto}.tank-slider{min-height:32px}</style>
+</head>
+<body>
+<!-- Copyright (c) 2026 洛小山 · Miyang Tech (Zhuhai Hengqin) Co., Ltd.
+     Adapted by LearnAI from the public itshen/learn-ai source, AGPL-3.0. -->
+<article class="lesson wide">
+<p class="adaptation-note">10 组固定数据累加到 64,800 / 131,072 Token，约 49.4%。文字、消息数量和 Token 均按教学情境设定，没有调用 tokenizer；费用卡只计算示例体量乘假设费率。</p>
+<div class="progress-wrap reveal" id="memDemo">
+    <div class="progress-label">
+      <span class="progress-title">上下文窗口使用率</span>
+      <span class="progress-nums"><span id="pctText">0%</span>&nbsp;&nbsp;<span id="usedTokens">0</span> / 131,072 Token</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progressFill"></div>
+      <div class="progress-warn" id="progressWarn">⚠️ 达到本例 40% 提醒阈值</div>
+    </div>
+  </div>
+
+  <div class="mem-layout reveal  ">
+    <!-- 主区域：工作台 -->
+    <div class="main">
+      <div class="desk-wrap">
+        <div class="desk-label"><span class="desk-label-icon">🖥</span> 本例工作台（假设窗口 = 131,072 Token）</div>
+        <div class="desk" id="desk"></div>
+      </div>
+      <div class="decision-area" id="decArea"></div>
+      <div class="hint-line"><span id="hint">共 10 步 · 观察工作台如何被填满</span>　<button class="btn-reset" onclick="reset()">↺ 重播</button></div>
+    </div>
+
+    <!-- 右侧统计面板 -->
+    <aside class="panel">
+      <div class="panel-section">
+        <div class="panel-title">实时统计</div>
+        <div class="stat-row">
+          <span class="stat-label">总 Token 数</span>
+          <span class="stat-val" id="statTokens">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">示例批次</span>
+          <span class="stat-val" id="statMsgs">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">使用率</span>
+          <span class="stat-val" id="statPct">0%</span>
+        </div>
+        <div class="cost-row">
+          <span class="cost-label">体量 × 假设单价</span>
+          <span class="cost-val" id="statCost">¥0.000</span>
+        </div>
+        <div style="font-size:11px;color:var(--sub);margin-top:4px">假设单价 ¥0.006 / 1K 输入 Token；非当前报价、实测或累计账单</div>
+      </div>
+
+      <div style="padding:8px 16px;font-size:12px;font-weight:800;color:var(--sub);letter-spacing:.5px;border-bottom:1px solid var(--border)">示例输入组成</div>
+      <div class="msg-list" id="msgList"></div>
+    </aside>
+  </div>
+
+  <div class="sec-label reveal ">Takeaway</div>
+  <div class="l-callout reveal ">
+    <b>本例观察</b>　这里按完整携带历史的方式展示消息占用。窗口容量、消息 Token 与价格均为设定；实际上下文策略、缓存和计费取决于模型与接口。应用还可在窗口之外保存任务状态与长期记忆。
+  </div>
+</article>
+<script src="../shared/embed.js"></script>
+<script src="../shared/lesson.js"></script>
+<script>
+var TOTAL = 131072;
+var RATE = 0.006;
+
+var STEPS = [
+  {
+    tokens: 220, role: 'system', color: '#6b6b70', bg: 'rgba(107,107,112,.08)', border: 'rgba(107,107,112,.15)',
+    label: '应用输入', text: '应用规则与工具定义（由接口分别传入，本页合并示意体量）',
+    decision: '<b>📌 设计决策：</b>规则与工具定义都可能占用输入预算。本例设为 220 Token，实际数量依内容和 tokenizer 而变，不存在每工具固定开销。'
+  },
+  {
+    tokens: 30, role: 'user', color: '#0891b2', bg: 'rgba(8,145,178,.06)', border: 'rgba(8,145,178,.15)',
+    label: '用户', text: '用户: 帮我分析这份报告，重点看营收趋势和风险因素',
+    decision: '<b>📌 设计决策：</b>用户的一句话只占 30 Token。本例采用每轮携带完整历史的策略，因此旧内容会继续进入后续输入；其他接口与上下文策略可能不同。'
+  },
+  {
+    tokens: 500, role: 'assistant', color: '#7c3aed', bg: 'rgba(124,58,237,.05)', border: 'rgba(124,58,237,.12)',
+    label: '助手', text: '助手: 好的，我来分析这份报告。首先我需要调用工具来读取文档内容…',
+    decision: '<b>📌 设计决策：</b>较长的回复也会占用后续输入空间。具体输出预算和长度因模型及任务而变。你需要在回复质量和上下文寿命之间取舍。'
+  },
+  {
+    tokens: 8000, role: 'user', color: '#0891b2', bg: 'rgba(8,145,178,.06)', border: 'rgba(8,145,178,.15)',
+    label: '用户 · 长文档', text: '用户: [上传了一份 20 页报告 — 公司年度财报全文]',
+    big: true,
+    decision: '<b>📌 设计决策：</b>本例把一份报告的输入设为 8000 Token（非实际分词测量），瞬间占满工作台的 6%。产品经理必须回答：允许用户上传多大的文件？超过上限怎么办？截断、摘要，还是拒绝？'
+  },
+  {
+    tokens: 2000, role: 'tool', color: '#16a34a', bg: 'rgba(22,163,74,.05)', border: 'rgba(22,163,74,.12)',
+    label: '工具返回', text: '工具返回: 报告分析结果 — 营收同比增长 23%，毛利率下降 2.1%，现金流风险…',
+    decision: '<b>📌 设计决策：</b>工具返回的原始数据有多大？一次数据库查询可能返回 5000 Token 的 JSON。你是全量塞进上下文，还是先做摘要再塞？这个决策直接影响上下文寿命。'
+  },
+  {
+    tokens: 1200, role: 'assistant', color: '#7c3aed', bg: 'rgba(124,58,237,.05)', border: 'rgba(124,58,237,.12)',
+    label: '助手', text: '助手: 根据报告分析，该公司营收增长强劲但毛利率承压，建议关注三个风险点…',
+    decision: '<b>📌 设计决策：</b>到这里才第 3 轮对话，窗口已经用了将近 10%。注意：本例在后续请求中携带完整历史；实际费用还涉及输入输出、缓存与供应商计费方式。'
+  },
+  {
+    tokens: 50, role: 'user', color: '#0891b2', bg: 'rgba(8,145,178,.06)', border: 'rgba(8,145,178,.15)',
+    label: '用户', text: '用户: 能不能对比一下去年同期的数据？',
+    decision: '<b>📌 设计决策：</b>用户的追问很短，但它触发了新一轮的工具调用，这意味着上下文里又要加入一大块工具返回数据。短问题可能引发长链路。'
+  },
+  {
+    tokens: 6000, role: 'tool', color: '#16a34a', bg: 'rgba(22,163,74,.05)', border: 'rgba(22,163,74,.12)',
+    label: '工具返回 · 历史数据', text: '工具返回: 去年同期数据 — 含 12 个月逐月营收、利润、成本明细表…',
+    big: true,
+    decision: '<b>📌 设计决策：</b>又一次大块数据涌入！如果不做数据裁剪，两轮工具调用就占了 8000 Token。你的产品是否需要一个上下文管理器来自动压缩旧数据？'
+  },
+  {
+    tokens: 1800, role: 'assistant', color: '#7c3aed', bg: 'rgba(124,58,237,.05)', border: 'rgba(124,58,237,.12)',
+    label: '助手', text: '助手: 对比分析完成。同比来看：营收 +23%、净利润 +15%、但运营成本 +31%…详细对比如下…',
+    decision: '<b>📌 关键认知：</b>每轮对话的 Token 消耗 = 之前所有消息的 Token 之和 + 本轮新增。这是一个<b>累加结构</b>：累计调用用量与当前消息体量是不同指标；右栏仅展示本例消息体量。'
+  },
+  {
+    tokens: 45000, role: 'multi', color: '#dc2626', bg: 'rgba(220,38,38,.04)', border: 'rgba(220,38,38,.2)',
+    label: '后续 5 轮对话', text: '第 5-10 轮: 用户继续深挖（竞品对比、预测模型、风险评估）+ 多次工具调用 + 长回复…',
+    big: true,
+    decision: '<b>📌 设计决策：</b>10 轮深度对话，窗口使用率已接近 50%。这些只是预设占用值，不能由此推出实际累计费用倍数。你的产品需要：① 对话轮次上限 ② 自动摘要压缩 ③ 关键信息提取策略。这是产品架构决策，不能只交给工程师。'
+  }
+];
+
+var cur = 0;
+var totalTokens = 0;
+var msgCount = 0;
+
+function getBarColor(pct) {
+  if (pct < 0.6) return 'var(--success)';
+  if (pct < 0.85) return 'var(--amber)';
+  return 'var(--danger)';
+}
+
+function updateStats() {
+  var pct = totalTokens / TOTAL;
+  var pctStr = (pct * 100).toFixed(1) + '%';
+  var cost = (totalTokens / 1000 * RATE).toFixed(3);
+
+  document.getElementById('pctText').textContent = pctStr;
+  document.getElementById('usedTokens').textContent = totalTokens.toLocaleString();
+
+  var fill = document.getElementById('progressFill');
+  fill.style.width = Math.min(pct * 100, 100) + '%';
+  fill.style.background = getBarColor(pct);
+
+  var warn = document.getElementById('progressWarn');
+  warn.classList.toggle('show', pct >= 0.4);
+
+  document.getElementById('statTokens').textContent = totalTokens.toLocaleString();
+  document.getElementById('statMsgs').textContent = msgCount;
+
+  var pctEl = document.getElementById('statPct');
+  pctEl.textContent = pctStr;
+  pctEl.className = 'stat-val' + (pct >= 0.85 ? ' danger' : pct >= 0.6 ? ' warn' : '');
+
+  document.getElementById('statCost').textContent = '¥' + cost;
+
+  var desk = document.getElementById('desk');
+  desk.classList.toggle('overflow', pct >= 0.85);
+}
+
+function addMsgChip(step) {
+  var list = document.getElementById('msgList');
+  var chip = document.createElement('div');
+  chip.className = 'msg-chip';
+  chip.style.background = step.bg;
+  chip.innerHTML =
+    '<span class="msg-chip-dot" style="background:' + step.color + '"></span>' +
+    '<span class="msg-chip-role" style="color:' + step.color + '">' + step.label.split('·')[0].trim() + '</span>' +
+    '<span class="msg-chip-tk">' + step.tokens.toLocaleString() + ' tk</span>';
+  list.appendChild(chip);
+  requestAnimationFrame(function() { requestAnimationFrame(function() {
+    chip.classList.add('show');
+    list.scrollTop = list.scrollHeight;
+  })});
+}
+
+function addBlock(step) {
+  var desk = document.getElementById('desk');
+  var block = document.createElement('div');
+  block.className = 'msg-block';
+  block.style.background = step.bg;
+  block.style.borderColor = step.border;
+
+  var height = step.big ? 'min-height:56px' : 'min-height:40px';
+  block.style.cssText += ';' + height;
+
+  var sizePct = Math.min((step.tokens / TOTAL) * 100, 100);
+  var sizeWidth = Math.max(sizePct * 15, 2);
+
+  block.innerHTML =
+    '<div class="msg-left">' +
+      '<div class="msg-icon" style="background:' + step.color + '">' + step.role.charAt(0).toUpperCase() + '</div>' +
+      '<div class="msg-info">' +
+        '<div class="msg-role" style="color:' + step.color + '">' + step.label + '</div>' +
+        '<div class="msg-text">' + step.text + '</div>' +
+        (step.big ? '<div class="msg-size" style="display:block"><div class="msg-size-fill" style="width:' + Math.min(sizeWidth, 100) + '%;background:' + step.color + '"></div></div>' : '') +
+      '</div>' +
+    '</div>' +
+    '<div class="msg-tokens" style="background:' + step.bg + ';color:' + step.color + ';border:1px solid ' + step.border + '">' + step.tokens.toLocaleString() + ' Token</div>';
+
+  desk.appendChild(block);
+  setTimeout(function() {
+    block.classList.add('show');
+  }, 60);
+}
+
+var playTimer = null;
+
+function playStep() {
+  if (cur >= STEPS.length) return;
+  var s = STEPS[cur];
+
+  totalTokens += s.tokens;
+  msgCount++;
+
+  addBlock(s);
+  addMsgChip(s);
+  updateStats();
+
+  var da = document.getElementById('decArea');
+  da.innerHTML = '<div class="dec-card">' + s.decision + '</div>';
+  requestAnimationFrame(function() { requestAnimationFrame(function() {
+    var dc = da.querySelector('.dec-card');
+    if (dc) dc.classList.add('show');
+  })});
+
+  cur++;
+  document.getElementById('hint').textContent = cur + ' / ' + STEPS.length + ' 步';
+
+  if (cur >= STEPS.length) {
+    document.getElementById('hint').textContent = '演示结束 · 示例窗口使用率约 49.4%';
+    playTimer = null;
+  } else {
+    playTimer = setTimeout(playStep, 900);
+  }
+}
+
+function startPlay() {
+  if (playTimer) clearTimeout(playTimer);
+  playTimer = setTimeout(playStep, 300);
+}
+
+function reset() {
+  if (playTimer) clearTimeout(playTimer);
+  playTimer = null;
+  cur = 0;
+  totalTokens = 0;
+  msgCount = 0;
+  document.getElementById('desk').innerHTML = '';
+  document.getElementById('desk').classList.remove('overflow');
+  document.getElementById('msgList').innerHTML = '';
+  document.getElementById('decArea').innerHTML = '';
+  document.getElementById('hint').textContent = '自动播放中…';
+  updateStats();
+  startPlay();
+}
+
+updateStats();
+
+lessonOnView(document.getElementById('memDemo'), function() {
+  document.getElementById('hint').textContent = '自动播放中…';
+  startPlay();
+}, 0.2);
+</script>
+</body>
+</html>

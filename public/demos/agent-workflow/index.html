@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>同一个任务，谁在决定下一步？</title>
+<script src="./gsap.min.js"></script>
+<style>
+@font-face{font-family:"Microsoft YaHei";src:local("Microsoft YaHei")}
+@font-face{font-family:"PingFang SC";src:local("PingFang SC")}
+@font-face{font-family:Consolas;src:local("Consolas")}
+:root{--paper:#f8faff;--ink:#243d59;--muted:#52677e;--accent:#254c82;--wash:#e4edf8;--line:#c8d6e7;font-family:"Microsoft YaHei","PingFang SC",sans-serif;color:var(--ink);background:var(--paper)}
+*{box-sizing:border-box}body{margin:0}button,select,input{font:inherit}button,select{color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:10px 17px}button{cursor:pointer}button:disabled{opacity:.45;cursor:default}button[aria-pressed=true],.primary{color:var(--paper);background:var(--accent);border-color:var(--accent)}button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+#experiment{width:100%;height:100%;min-height:1440px;padding:40px;display:flex;flex-direction:column;gap:24px;position:relative;overflow:hidden}
+.grid-decoration{position:absolute;inset:0;pointer-events:none;opacity:.12;background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:64px 64px;mask-image:linear-gradient(to bottom,black,transparent 65%)}
+header,main,footer,.controls,.scenarios{position:relative}p,h1,h2{margin:0}.eyebrow{font:18px/1.5 Consolas,monospace;letter-spacing:.1em;color:var(--muted)}h1{font-size:60px;line-height:1.2;font-weight:900;letter-spacing:-.03em}.lead{font-size:24px;margin-top:16px;line-height:1.6}header{display:flex;flex-direction:column;gap:8px}.task{padding:15px 20px;background:var(--wash);font-size:24px;line-height:1.6;border-radius:12px}
+.scenarios{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:22px}.scenarios strong{margin-right:8px}.controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:22px}.controls label{display:flex;align-items:center;gap:10px;flex:1;min-width:200px}.controls label{white-space:nowrap}.controls input{flex:1;min-width:0;accent-color:var(--accent)}.stage-label{font-size:22px;color:var(--accent);font-weight:700;min-width:190px}
+main{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}.lane{min-width:0;padding:24px 22px;border:1px solid var(--line);border-radius:16px;background:#fdfefe}.lane h2{font-size:30px;font-weight:900}.owner{font-size:20px;line-height:1.6;color:var(--muted);margin:10px 0 16px;min-height:64px}.events{list-style:none;padding:0;margin:0;display:grid;gap:12px}.event{padding:14px 16px;min-height:100px;border-radius:10px;background:var(--paper);border:1px solid var(--line);font-size:22px;line-height:1.5;overflow-wrap:anywhere}.event strong{display:block;font-size:18px;letter-spacing:.02em;color:var(--accent);margin-bottom:6px}.event.active{border:2px solid var(--accent);padding:13px 15px;background:var(--wash)}.outcome{margin-top:16px;border-top:1px solid var(--line);padding-top:16px;font-size:23px;line-height:1.6;font-weight:700;min-height:90px}.footnote{font-size:20px;line-height:1.65;color:var(--muted)}footer{display:grid;gap:8px}.takeaway{font-size:24px;line-height:1.6;font-weight:700}.error{color:var(--accent)}
+@media(max-width:1100px){#experiment{min-height:0;padding:22px;gap:18px}h1{font-size:34px}.eyebrow{font-size:13px}.lead,.task{font-size:16px}.scenarios,.controls,.stage-label{font-size:14px}.scenarios{gap:8px}.lane{padding:16px 12px}.lane h2{font-size:20px}.owner{font-size:13px;min-height:62px}.event{font-size:14px;min-height:110px;padding:12px 10px}.event.active{padding:11px 9px}.event strong{font-size:12px}.outcome{font-size:15px;min-height:100px}.footnote{font-size:12px}.takeaway{font-size:16px}main{gap:12px}button{padding:9px 12px}.stage-label{min-width:135px}}
+@media(max-width:600px){#experiment{padding:16px}h1{font-size:28px}main{grid-template-columns:1fr}.lane{padding:16px}.owner{min-height:0}.events{grid-template-columns:repeat(2,minmax(0,1fr))}.event{min-height:126px}.outcome{min-height:0}.controls{gap:8px}.controls label{flex-basis:100%;order:5}.stage-label{flex:1}.scenarios strong{flex-basis:100%}button{min-height:44px}.lead{margin-top:8px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div data-hf-id="hf-7g7m" id="experiment" data-composition-id="agent-workflow" data-start="0" data-duration="20" data-width="1440" data-height="1440">
+<div data-hf-id="hf-752x" class="grid-decoration" aria-hidden="true" data-layout-ignore></div>
+<header data-hf-id="hf-1m9t" id="intro"><p data-hf-id="hf-kguy" class="eyebrow">AGENT LAB / 01.02</p><h1 data-hf-id="hf-qvth">谁在决定下一步？</h1><p data-hf-id="hf-4a0b" class="lead">同一个任务，同一份资料。改变一个条件，看三种系统怎样继续。</p></header>
+<div data-hf-id="hf-clyb" id="task" class="task"><strong data-hf-id="hf-ab8m">任务</strong>　比较甲、乙两门课的费用，保存一份报告。</div>
+<div data-hf-id="hf-r7b8" id="scenario-controls" class="scenarios" role="group" aria-label="资料情境"><strong data-hf-id="hf-9tej">改变资料条件</strong><button data-hf-id="hf-6bw6" data-scenario="complete" aria-pressed="false">费用齐全</button><button data-hf-id="hf-t6g0" data-scenario="missing" aria-pressed="true">乙费用缺失</button><button data-hf-id="hf-spum" data-scenario="moved" aria-pressed="false">报名页已迁移</button></div>
+<div data-hf-id="hf-pje1" id="play-controls" class="controls"><button data-hf-id="hf-jdm0" id="play" class="primary">播放过程</button><button data-hf-id="hf-49nd" id="back" aria-label="上一步">←</button><button data-hf-id="hf-0emz" id="next">下一步 →</button><button data-hf-id="hf-bfcf" id="reset">重看</button><span data-hf-id="hf-kig2" id="stage" class="stage-label" role="status" aria-live="polite">1 / 5 · 接收任务</span><label data-hf-id="hf-abju" for="progress">进度<input data-hf-id="hf-p69f" id="progress" type="range" min="0" max="4" value="0" step="1" aria-valuetext="接收任务"></label></div>
+<main data-hf-id="hf-jgp3" aria-label="三种实现的执行对照">
+<section data-hf-id="hf-sxos" id="chat" class="lane" aria-labelledby="chat-title"><h2 data-hf-id="hf-z9ba" id="chat-title">聊天助手</h2><p data-hf-id="hf-9okh" class="owner">本例未接工具。提供建议，由人执行</p><ol data-hf-id="hf-mw2h" class="events"></ol><p data-hf-id="hf-x57t" class="outcome"></p></section>
+<section data-hf-id="hf-9iey" id="workflow" class="lane" aria-labelledby="workflow-title"><h2 data-hf-id="hf-wcc2" id="workflow-title">固定工作流</h2><p data-hf-id="hf-rhjz" class="owner">程序决定下一步。包含预先写好的条件分支</p><ol data-hf-id="hf-3gdp" class="events"></ol><p data-hf-id="hf-g87x" class="outcome"></p></section>
+<section data-hf-id="hf-zdc8" id="agent" class="lane" aria-labelledby="agent-title"><h2 data-hf-id="hf-8g23" id="agent-title">Agent</h2><p data-hf-id="hf-7c36" class="owner">模型在允许范围内选择行动。程序检查权限并执行</p><ol data-hf-id="hf-4nas" class="events"></ol><p data-hf-id="hf-hf50" class="outcome"></p></section>
+</main>
+<footer data-hf-id="hf-lh6e" id="conclusion"><p data-hf-id="hf-c0mu" class="takeaway">工具可以相同。关键是：下一步由预设规则决定，还是由模型结合观察选择？</p><p data-hf-id="hf-oyp1" class="footnote">聊天界面也能承载工作流和 Agent。本演示使用预设路径，不调用真实模型、不查询真实价格、不写入文件；动态决策不保证成功。</p></footer>
+</div>
+<script>
+const root=document.getElementById('experiment');
+const stages=['接收任务','取得资料','决定下一步','执行与交付','比较结果'];
+const scenarioData={
+ complete:{observation:'甲 1200 元；乙 1600 元。',fixedDecision:'两项费用都有 → 按既定步骤生成报告。',fixedAction:'程序检查保存权限，保存报告。',fixedResult:'已保存同口径费用报告。',agentDecision:'模型判断证据齐全，选择整理与保存。',agentAction:'程序检查保存权限，保存报告。',agentResult:'已保存同口径费用报告。'},
+ missing:{observation:'甲 1200 元；乙介绍页未列费用。',fixedDecision:'触发预设 if：缺价格 → 读取固定报名页 C。',fixedAction:'C 返回乙 1600 元；按原流程保存。',fixedResult:'预设分支覆盖了缺口，报告已保存。',agentDecision:'模型根据缺口，选择搜索乙课程官方报名页。',agentAction:'搜索找到 C，读取乙 1600 元；核对后保存。',agentResult:'补查方向由模型选择，报告已保存。'},
+ moved:{observation:'乙未列费用，原报名页 C 已迁移；公告提到新招生站。',fixedDecision:'按预设分支读取 C；收到 404，进入已写好的失败处理。',fixedAction:'输出已有草案和缺口，等待维护规则或人工处理。',fixedResult:'本例规则未覆盖新入口，保留缺口。',agentDecision:'模型结合公告，选择改查新招生站的费用页。',agentAction:'本例预设：找到 D，乙 1600 元；核对后保存。',agentResult:'本例补查成功；真实运行也可能找不到。'}
+};
+let scenario='missing';let currentStage=0;let timeline;
+window.__timelines=window.__timelines||{};
+function fillLane(id,events,result){
+ const list=document.querySelector('#'+id+' .events');list.replaceChildren();
+ events.forEach((event,index)=>{const item=document.createElement('li');item.className='event';item.dataset.phase=String(index);const title=document.createElement('strong');title.textContent=String(index+1).padStart(2,'0')+' · '+['输入','观察','决策','结果'][index];const text=document.createElement('span');text.textContent=event;item.append(title,text);list.append(item)});
+ document.querySelector('#'+id+' .outcome').textContent=result;
+}
+function syncControls(){
+ currentStage=Math.min(4,Math.floor(timeline.time()/4));
+ document.getElementById('stage').textContent=(currentStage+1)+' / 5 · '+stages[currentStage];
+ const range=document.getElementById('progress');range.value=String(currentStage);range.setAttribute('aria-valuetext',stages[currentStage]);
+ document.getElementById('back').disabled=currentStage===0;document.getElementById('next').disabled=currentStage===4;
+ document.getElementById('play').textContent=timeline.paused()?'播放过程':'暂停';
+ root.querySelectorAll('.event').forEach(node=>node.classList.toggle('active',Number(node.dataset.phase)===Math.min(3,currentStage)));
+}
+function build(){
+ if(timeline) timeline.revert();
+ const data=scenarioData[scenario];
+ fillLane('chat',['收到同一个研究与保存任务。','没有搜索或读取工具，尚未取得网页资料。','给出比较方法，请用户提供资料。','不能查询实际价格，也不能保存文件。'],'本例只能给建议，实际操作仍由人完成。');
+ fillLane('workflow',['按程序规定的步骤启动。',data.observation,data.fixedDecision,data.fixedAction],data.fixedResult);
+ fillLane('agent',['目标与可用工具进入模型输入。',data.observation,data.agentDecision,data.agentAction],data.agentResult);
+ timeline=gsap.timeline({paused:true,onUpdate:syncControls,onComplete:()=>{timeline.pause();syncControls()}});
+ const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+ timeline.from('#intro',{opacity:0,y:reduced?0:12,duration:.35,ease:'power3.out'},.15);
+ timeline.from('#task',{opacity:0,x:reduced?0:-12,duration:.45,ease:'sine.out'},.2);
+ timeline.from(['#scenario-controls','#play-controls'],{opacity:0,duration:.3,stagger:.08,ease:'expo.out'},.25);
+ timeline.from('.lane h2, .owner',{opacity:0,y:reduced?0:8,duration:.3,stagger:.03,ease:'power2.out'},.3);
+ for(let i=0;i<4;i++) timeline.from('[data-phase="'+i+'"]',{opacity:0,x:reduced?0:10,duration:.6,stagger:.08,ease:['power3.out','sine.out','expo.out','power2.out'][i]},i*4+.2);
+ timeline.from('.outcome',{opacity:0,y:reduced?0:10,duration:.6,stagger:.08,ease:'sine.out'},16.2);
+ timeline.from('#conclusion',{opacity:0,duration:.5,ease:'expo.out'},16.4);
+ timeline.to('.grid-decoration',{opacity:.08,duration:19.8,ease:'sine.inOut'},.2);
+ window.__timelines['agent-workflow']=timeline;
+ timeline.seek(.95);syncControls();
+}
+function seekStage(stage){timeline.pause().seek(Math.max(0,Math.min(4,stage))*4+.95);syncControls()}
+root.querySelectorAll('[data-scenario]').forEach(button=>button.addEventListener('click',()=>{scenario=button.dataset.scenario;root.querySelectorAll('[data-scenario]').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));build()}));
+document.getElementById('play').addEventListener('click',()=>{if(timeline.paused()){if(timeline.time()>=19.9)timeline.seek(.95);timeline.play()}else timeline.pause();syncControls()});
+document.getElementById('next').addEventListener('click',()=>seekStage(currentStage+1));document.getElementById('back').addEventListener('click',()=>seekStage(currentStage-1));document.getElementById('reset').addEventListener('click',()=>seekStage(0));document.getElementById('progress').addEventListener('input',event=>seekStage(Number(event.target.value)));
+window.addEventListener('pagehide',()=>timeline.pause());
+build();
+// The course frame follows the actual document height on small screens.
+new ResizeObserver(()=>{if(window.parent!==window)window.parent.postMessage({type:'agent-workflow-height',height:document.documentElement.scrollHeight},window.location.origin)}).observe(root);
+</script>
+</body>
+</html>

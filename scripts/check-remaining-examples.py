@@ -8,7 +8,7 @@ import subprocess
 import sys
 
 root = Path(__file__).resolve().parent.parent
-modules = ["engineering-basics", "rag", "agents", "mcp", "multimodal", "app-engineering", "deployment"]
+modules = ["engineering-basics", "rag", "mcp", "multimodal", "app-engineering", "deployment"]
 environment = {**os.environ, "PYTHONUTF8": "1"}
 count = 0
 

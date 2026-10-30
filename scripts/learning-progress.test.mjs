@@ -19,7 +19,7 @@ async function mount({ failWrite = false, query = {}, slug = 'llm-basics' } = {}
   const context = {
     route, router: { replace(value) { route.query = value.query; } },
     async api(path, options) {
-      if (path.startsWith('/knowledge/')) return { title: '课程', sections: [1, 2, 3].map(id => ({ id, nodeType: 'LESSON', title: `课节 ${id}`, hasQuiz: Boolean(courseCatalog[slug]) })) };
+      if (path.startsWith('/knowledge/')) return { title: '课程', sections: [1, 2, 3].map(id => ({ id, nodeType: 'LESSON', title: `课节 ${id}`, hasQuiz: slug !== 'agents' && Boolean(courseCatalog[slug]) })) };
       if (!options) return saved;
       const sectionId = Number(path.split('/').at(-1));
       const change = JSON.parse(options.body);
@@ -85,7 +85,7 @@ test('application lesson quiz follows server metadata and resets when changing l
 });
 
 test('every remaining module restores the requested lesson with its own download and quiz', async () => {
-  for (const slug of ['engineering-basics', 'rag', 'agents', 'mcp', 'multimodal', 'app-engineering', 'deployment']) {
+  for (const slug of ['engineering-basics', 'rag', 'mcp', 'multimodal', 'app-engineering', 'deployment']) {
     const view = await mount({ slug, query: { section: '3' } });
     try {
       assert.equal(view.state.selectedId, 3);
@@ -94,4 +94,22 @@ test('every remaining module restores the requested lesson with its own download
       assert.equal(view.state.courseInfo.stages.length, 4);
     } finally { view.cleanup(); }
   }
+});
+
+test('Agent lessons expose eight chapters without the retired download or quiz, and save explicit reading progress', async () => {
+  const view = await mount({ slug: 'agents', query: { section: '3' } });
+  try {
+    assert.equal(view.state.hasQuiz, false);
+    assert.equal(view.state.courseInfo.download, null);
+    assert.equal(view.state.courseInfo.stages.length, 8);
+    assert.equal(view.state.progress.completed, 0);
+    assert.equal(await view.state.saveProgress(3, true), true);
+    assert.equal(view.state.progress.completed, 1);
+    assert.deepEqual(view.writes.at(-1), { sectionId: 3, completed: true });
+  } finally { view.cleanup(); }
+  const failed = await mount({ slug: 'agents', failWrite: true });
+  try {
+    assert.equal(await failed.state.saveProgress(3, true), false);
+    assert.equal(failed.state.progress.completed, 0);
+  } finally { failed.cleanup(); }
 });

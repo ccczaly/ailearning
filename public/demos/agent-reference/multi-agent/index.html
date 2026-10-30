@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="upstream-source" content="https://xueai.miyang.cn/slides/7-6b.html">
+<title>多 Agent：任务交接与状态 · LearnAI</title>
+<link rel="stylesheet" href="../shared/lesson.css">
+<style>
+
+/* ── 场景卡 ── */
+.scenario-card{background:var(--card);border:1.5px solid rgba(8,145,178,.25);border-radius:var(--radius);padding:14px 18px}
+.sc-label{font-size:12px;font-weight:800;color:var(--cyan);letter-spacing:.4px;margin-bottom:4px}
+.sc-text{font-size:15px;color:var(--text);line-height:1.6}
+
+/* ── 组织结构图 ── */
+.org{display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 0 6px}
+.org-node{padding:6px 14px;border-radius:8px;font-size:14px;font-weight:700;text-align:center}
+.org-coord{background:rgba(0,102,255,.08);color:var(--accent);border:1.5px solid rgba(0,102,255,.3)}
+.org-line{width:1px;height:12px;background:var(--border)}
+.org-branches{display:flex;gap:10px;position:relative;width:100%;max-width:480px;justify-content:center}
+.org-branches::before{content:'';position:absolute;top:0;left:16%;right:16%;height:1px;background:var(--border)}
+.org-branch{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1}
+.org-branch-line{width:1px;height:8px;background:var(--border)}
+.org-sub{padding:5px 10px;border-radius:6px;font-size:12px;font-weight:700;text-align:center;white-space:nowrap}
+.org-sub-r{background:rgba(8,145,178,.08);color:var(--cyan);border:1px solid rgba(8,145,178,.2)}
+.org-sub-d{background:rgba(124,58,237,.06);color:var(--purple);border:1px solid rgba(124,58,237,.2)}
+.org-sub-t{background:rgba(22,163,74,.06);color:var(--success);border:1px solid rgba(22,163,74,.2)}
+
+/* ── Agent 角色卡 ── */
+.agent-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
+.agent-card{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px 16px;transition:all .35s;box-shadow:var(--shadow-card)}
+.agent-card.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,102,255,.12)}
+.agent-card.done{border-color:var(--success);background:rgba(22,163,74,.02)}
+.ac-hd{display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap}
+.ac-icon{font-size:16px}
+.ac-name{font-size:15px;font-weight:800;color:var(--text)}
+.ac-role{font-size:12px;color:var(--sub);font-weight:600}
+.ac-task{font-size:13px;color:var(--sub);line-height:1.5;margin-bottom:6px}
+.ac-tools{display:flex;flex-wrap:wrap;gap:4px}
+.ac-tool{padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;background:rgba(0,0,0,.05);color:var(--sub);font-family:"SF Mono","Fira Code",Menlo,monospace}
+.ac-status{margin-top:6px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:4px}
+.typing-dots span{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--accent);animation:blink 1.4s infinite both}
+.typing-dots span:nth-child(2){animation-delay:.2s}
+.typing-dots span:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.3}40%{opacity:1}}
+
+/* ── 执行流程 ── */
+.c-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.c-stats{display:flex;gap:16px;align-items:center}
+.c-stat{font-size:13px;color:var(--sub);font-weight:600}
+.c-stat span{font-weight:800;color:var(--text)}
+.btn-reset{padding:6px 14px;border-radius:8px;font-size:13px;font-weight:700;border:1px solid var(--border);background:var(--card);color:var(--sub);cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-reset:hover{color:var(--text);border-color:rgba(0,0,0,.15)}
+.ctrl-hint{font-size:13px;color:var(--sub)}
+.flow-area{display:flex;flex-direction:column;gap:8px;min-height:40px}
+
+.flow-item{border-radius:var(--radius-sm);padding:11px 14px;font-size:14px;line-height:1.6;opacity:0;transform:translateY(6px);transition:all .35s}
+.flow-item.show{opacity:1;transform:translateY(0)}
+.fi-coordinator{background:rgba(0,102,255,.05);border:1.5px solid rgba(0,102,255,.18)}
+.fi-researcher{background:rgba(8,145,178,.04);border:1.5px solid rgba(8,145,178,.18)}
+.fi-developer{background:rgba(124,58,237,.04);border:1.5px solid rgba(124,58,237,.15)}
+.fi-tester{background:rgba(22,163,74,.04);border:1.5px solid rgba(22,163,74,.15)}
+.fi-event{background:var(--card);border:1.5px dashed var(--border)}
+.fi-label{font-size:11px;font-weight:800;letter-spacing:.4px;margin-bottom:3px}
+.fi-text{color:var(--text)}
+.fi-detail{color:var(--sub);font-size:13px;margin-top:2px}
+.parallel-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:rgba(8,145,178,.08);color:var(--cyan)}
+.sequential-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:rgba(0,102,255,.08);color:var(--accent)}
+
+/* ── 产品决策 / 核心概念 ── */
+.dec-area{display:flex;flex-direction:column;gap:10px}
+.dec-card{background:rgba(0,102,255,.04);border:1.5px solid rgba(0,102,255,.18);border-radius:var(--radius-sm);padding:12px 15px;font-size:14px;color:var(--text);line-height:1.6;opacity:0;transform:translateY(4px);transition:all .35s}
+.dec-card.show{opacity:1;transform:translateY(0)}
+.dec-card b{color:var(--accent)}
+.concept-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.concept-card{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:12px 15px;font-size:13px;color:var(--text);line-height:1.6;box-shadow:var(--shadow-card)}
+.concept-card b{color:var(--purple)}
+
+@media (max-width:768px){
+  .agent-grid{grid-template-columns:1fr}
+  .concept-grid{grid-template-columns:1fr}
+  .org-branches{gap:6px}
+  .org-sub{font-size:11px;padding:4px 8px}
+}
+
+
+/* Adapted to a course reading column; original interaction layout is preserved on wide screens. */
+html,body{margin:0;min-width:0;opacity:1}body{overflow-wrap:anywhere}.lesson{max-width:none;margin:0;padding:16px;box-sizing:border-box}.reference-demo-note{margin:16px;padding:12px;border:1px solid var(--border);border-radius:10px;color:var(--sub);font-size:13px;line-height:1.7}button:focus-visible,[role=button]:focus-visible{outline:3px solid var(--accent);outline-offset:3px}.pipeline{overflow-x:auto;padding-bottom:8px}.flow-row{flex-wrap:wrap}.table-wrap{overflow-x:auto}@media(max-width:800px){.demo-grid,.body-grid,.main-body,.monitor,.scaf-grid,.cap-grid,.agent-grid{grid-template-columns:1fr!important}.sim-body,.event-area{max-height:420px;overflow-y:auto}.mode-tabs,.mode-row{flex-wrap:wrap}.stats-area{grid-template-columns:repeat(2,minmax(0,1fr))!important}.org{overflow-x:auto}.confirm-card{max-width:calc(100vw - 32px)}}
+</style>
+<script src="../shared/lesson.js"></script>
+<script src="../shared/embed.js"></script>
+</head>
+<body>
+<article class="lesson">
+
+    <div class="sec-label ">场景 · Agent 团队</div>
+
+  <div class="scenario-card ">
+    <div class="sc-label">用户指令</div>
+    <div class="sc-text">「帮我重构这个项目的用户认证模块」</div>
+  </div>
+
+  <div class="org ">
+    <div class="org-node org-coord">主 Agent · 协调员</div>
+    <div class="org-line"></div>
+    <div class="org-branches">
+      <div class="org-branch"><div class="org-branch-line"></div><div class="org-sub org-sub-r">🔍 调研员</div></div>
+      <div class="org-branch"><div class="org-branch-line"></div><div class="org-sub org-sub-d">💻 开发者</div></div>
+      <div class="org-branch"><div class="org-branch-line"></div><div class="org-sub org-sub-t">🧪 测试员</div></div>
+    </div>
+  </div>
+
+  <div class="agent-grid   ">
+    <div class="agent-card" id="agentResearcher">
+      <div class="ac-hd"><span class="ac-icon">🔍</span><span class="ac-name">调研员</span><span class="ac-role">只读</span></div>
+      <div class="ac-task">分析当前认证模块的代码结构和依赖</div>
+      <div class="ac-tools"><span class="ac-tool">read_file</span><span class="ac-tool">search_files</span><span class="ac-tool">grep</span></div>
+      <div class="ac-status" id="statusResearcher" style="color:var(--sub)">待分配</div>
+    </div>
+
+    <div class="agent-card" id="agentDeveloper">
+      <div class="ac-hd"><span class="ac-icon">💻</span><span class="ac-name">开发者</span><span class="ac-role">可读写</span></div>
+      <div class="ac-task">重写认证中间件，改用 JWT</div>
+      <div class="ac-tools"><span class="ac-tool">read_file</span><span class="ac-tool">edit_file</span><span class="ac-tool">run_command</span></div>
+      <div class="ac-status" id="statusDeveloper" style="color:var(--sub)">待分配</div>
+    </div>
+
+    <div class="agent-card" id="agentTester">
+      <div class="ac-hd"><span class="ac-icon">🧪</span><span class="ac-name">测试员</span><span class="ac-role">可读 + 运行</span></div>
+      <div class="ac-task">编写并运行认证模块的单元测试</div>
+      <div class="ac-tools"><span class="ac-tool">read_file</span><span class="ac-tool">edit_file</span><span class="ac-tool">run_command</span></div>
+      <div class="ac-status" id="statusTester" style="color:var(--sub)">待分配</div>
+    </div>
+  </div>
+
+  <div class="sec-label  ">核心概念</div>
+
+  <div class="concept-grid  ">
+    <div class="concept-card">
+      <b>类比理解</b><br>
+      单 Agent = 一个人干所有事<br>
+      多 Agent = 一个团队，各有专长
+    </div>
+    <div class="concept-card">
+      <b>技术原理</b><br>
+      本例将子 Agent 画成独立运行单元<br>
+      隔离方式由具体运行环境决定<br>
+      需要约定取消与状态返回方式
+    </div>
+    <div class="concept-card">
+      <b>事件通信</b><br>
+      subagent_start → 子 Agent 启动<br>
+      subagent_chunk → 流式返回中<br>
+      subagent_end → 子 Agent 完成
+    </div>
+  </div>
+
+  <div class="sec-label  ">执行流程</div>
+
+  <div class="c-bar  " id="flowDemo">
+    <div class="c-stats">
+      <div class="c-stat">子 Agent <span id="agentCount">0</span>/3</div>
+      <div class="c-stat">事件 <span id="eventCount">0</span></div>
+      <span class="ctrl-hint" id="hint">共 8 步 · 看主 Agent 如何调度团队</span>
+    </div>
+    <button class="btn-reset" onclick="reset()">↺ 重播</button>
+  </div>
+  <div class="flow-area " id="flowArea"></div>
+
+  <div class="sec-label  ">产品决策</div>
+
+  <div class="dec-area " id="decArea"></div>
+
+  <div class="l-callout  " style="margin-top:28px">
+    <b>Takeaway</b> 复杂任务不靠一个 Agent 硬撑，而是拆成多个专职子 Agent：调研员负责读代码、开发者负责改代码、测试员负责验证。独立任务可并行，有依赖或共享写入的任务需要协调。这就是 Agent 世界的团队协作。
+  </div>
+
+</article>
+<p class="reference-demo-note">教学预设：所有对话、动作、执行结果、次数、Token、时间和费用均为示例数据，不会调用真实模型、执行命令或产生预订/发布。技能说明与风险分类不能替代程序权限检查。</p>
+<noscript>请启用 JavaScript 查看交互演示。</noscript>
+<script>
+
+var STEPS = [
+  {
+    hint: '1/8 · 主 Agent 接到任务，开始拆解',
+    agents: 0, events: 1,
+    agentStates: {researcher:'待分配',developer:'待分配',tester:'待分配'},
+    agentActive: [],
+    flow: [
+      {type:'coordinator',label:'主 Agent · 协调员',color:'var(--accent)',
+       text:'收到任务：「重构用户认证模块」。分析后拆解为 3 个子任务 →',
+       detail:'① 分析现有代码结构  ② 重写认证中间件  ③ 编写单元测试'}
+    ],
+    decision: '<b>📌 什么时候需要多 Agent？</b><br>当任务可以拆解成独立子任务，且子任务需要不同能力（只读 / 读写 / 运行命令）时。如果一个 Agent 就能搞定，就别派团队：每个子 Agent 都要带自己的 system prompt + 上下文 = 额外 Token 成本。'
+  },
+  {
+    hint: '2/8 · 调研员启动，只读模式并行安全',
+    agents: 1, events: 2,
+    agentStates: {researcher:'running',developer:'待分配',tester:'待分配'},
+    agentActive: ['researcher'],
+    flow: [
+      {type:'event',label:'事件',color:'var(--sub)',
+       text:'subagent_start → 调研员（调研任务）',
+       detail:'只读子 Agent，不会修改任何文件'},
+      {type:'researcher',label:'🔍 调研员',color:'var(--cyan)',
+       text:'正在分析认证模块…扫描 auth/ 目录、追踪依赖链、识别 session 存储逻辑',
+       badge:{text:'只读 · 可并行',class:'parallel-badge'}}
+    ],
+    decision: '<b>📌 只读子 Agent 的优势</b><br>调研员只能读不能写，所以可以和其他只读任务并行运行（Promise.all）。这就像多人同时翻资料，互不影响。'
+  },
+  {
+    hint: '3/8 · 调研员完成，返回发现给协调员',
+    agents: 1, events: 3,
+    agentStates: {researcher:'done',developer:'待分配',tester:'待分配'},
+    agentActive: [],
+    flow: [
+      {type:'event',label:'事件',color:'var(--sub)',
+       text:'subagent_end → 调研员完成',detail:''},
+      {type:'researcher',label:'🔍 调研员 · 报告',color:'var(--cyan)',
+       text:'发现：当前使用 express-session + Redis 存储，auth 中间件 3 处、路由守卫 5 处、密码用 bcrypt 哈希。建议迁移到 JWT 后可移除 Redis 依赖。',
+       detail:'将证据表返回给主 Agent（通信方式为示意）'}
+    ],
+    decision: '<b>📌 子 Agent 隔离的意义</b><br>本例将调研任务作为独立单元。真实系统可采用会话、进程或其他隔离方式；需要规定失败报告、取消和结果交接。'
+  },
+  {
+    hint: '4/8 · 开发者启动，需要调研员的发现作为上下文',
+    agents: 2, events: 4,
+    agentStates: {researcher:'done',developer:'running',tester:'待分配'},
+    agentActive: ['developer'],
+    flow: [
+      {type:'coordinator',label:'主 Agent · 协调员',color:'var(--accent)',
+       text:'将调研报告注入开发者的上下文 → 启动开发者子 Agent',
+       detail:'开发者需要知道现有代码结构，才能安全重构'},
+      {type:'event',label:'事件',color:'var(--sub)',
+       text:'subagent_start → 开发者（开发任务）',detail:''},
+      {type:'developer',label:'💻 开发者',color:'var(--purple)',
+       text:'正在重构认证中间件…移除 session 逻辑、实现 JWT 签发 / 验证、更新路由守卫…',
+       badge:{text:'可读写 · 先协调依赖',class:'sequential-badge'}}
+    ],
+    decision: '<b>📌 并行 vs 串行的核心原则</b><br>开发者要改文件，如果同时有两个写入 Agent，可能互相覆盖代码。所以<b>独立任务可以并行；依赖同一结果或改动同一资源时，需要串行或隔离后合并</b>。本动画展示有依赖的串行交接；不表示所有写入都必须串行。'
+  },
+  {
+    hint: '5/8 · 开发者完成，代码已修改',
+    agents: 2, events: 5,
+    agentStates: {researcher:'done',developer:'done',tester:'待分配'},
+    agentActive: [],
+    flow: [
+      {type:'event',label:'事件',color:'var(--sub)',
+       text:'subagent_end → 开发者完成',detail:''},
+      {type:'developer',label:'💻 开发者 · 交付',color:'var(--purple)',
+       text:'完成：已移除 express-session，新增 jwt.middleware.ts，更新 5 处路由守卫，添加 token 刷新逻辑。修改了 8 个文件。',
+       detail:''}
+    ],
+    decision: '<b>📌 子 Agent 的 Token 成本</b><br>每个子 Agent 需要适当的规则与任务背景。增加子 Agent 会增加调用和协调成本，实际用量取决于输入与任务。所以只有当任务确实需要不同能力、且拆解后效率更高时，才值得启动多 Agent。'
+  },
+  {
+    hint: '6/8 · 测试员启动，需要开发者的代码变更',
+    agents: 3, events: 6,
+    agentStates: {researcher:'done',developer:'done',tester:'running'},
+    agentActive: ['tester'],
+    flow: [
+      {type:'coordinator',label:'主 Agent · 协调员',color:'var(--accent)',
+       text:'将开发者的变更文件列表注入测试员上下文 → 启动测试员',
+       detail:'测试员需要知道改了哪些文件，才能针对性编写测试'},
+      {type:'event',label:'事件',color:'var(--sub)',
+       text:'subagent_start → 测试员（测试任务）',detail:''},
+      {type:'tester',label:'🧪 测试员',color:'var(--success)',
+       text:'正在编写测试…JWT 签发测试、过期 Token 测试、路由守卫鉴权测试、Token 刷新测试…',
+       badge:{text:'可读写 · 先协调依赖',class:'sequential-badge'}}
+    ],
+    decision: '<b>📌 串行依赖链</b><br>调研员 → 开发者 → 测试员，后一个依赖前一个的输出。这就像真实团队的工作流程：先调研、再开发、最后测试。主 Agent 负责在中间传递上下文。'
+  },
+  {
+    hint: '7/8 · 测试员完成，测试全部通过',
+    agents: 3, events: 7,
+    agentStates: {researcher:'done',developer:'done',tester:'done'},
+    agentActive: [],
+    flow: [
+      {type:'event',label:'事件',color:'var(--sub)',
+       text:'subagent_end → 测试员完成',detail:''},
+      {type:'tester',label:'🧪 测试员 · 报告',color:'var(--success)',
+       text:'测试结果：12 个测试用例全部通过。覆盖场景：正常登录、Token 过期、非法 Token、刷新机制、路由保护。',
+       detail:''}
+    ],
+    decision: '<b>📌 终止与容错</b><br>如果测试员发现严重 Bug，主 Agent 可以决定：① 把 Bug 信息交给开发者重新修复  ② 终止流程并向用户报告。父级通过 postMessage 通知子 Agent 停止 → 等 2 秒宽限期 → 强制 terminate。'
+  },
+  {
+    hint: '8/8 · 主 Agent 汇总所有结果，交付给用户',
+    agents: 3, events: 8,
+    agentStates: {researcher:'done',developer:'done',tester:'done'},
+    agentActive: [],
+    flow: [
+      {type:'coordinator',label:'主 Agent · 汇总交付',color:'var(--accent)',
+       text:'认证模块重构完成。调研员分析了代码结构，开发者将 session 改为 JWT（修改 8 个文件），测试员验证了 12 个用例全部通过。Redis 依赖已移除，新增 Token 刷新机制。',
+       detail:'用户只看到这一条最终回答，背后是 3 个子 Agent 的协作成果'}
+    ],
+    decision: '<b>📌 用户感知 vs 实际过程</b><br>用户发了一句话，收到一段完整汇报。本例背后安排了 3 个子任务和 8 步交接。真实系统需要决定展示哪些可核实的状态与结果；子任务隔离并不限定为某一种线程实现。'
+  }
+];
+
+var cur = 0;
+
+function setAgentState(id, state) {
+  var card = document.getElementById('agent' + id);
+  var status = document.getElementById('status' + id);
+  card.classList.remove('active','done');
+  if (state === 'running') {
+    card.classList.add('active');
+    status.innerHTML = '<span style="color:var(--accent)">执行中 </span><span class="typing-dots"><span></span><span></span><span></span></span>';
+  } else if (state === 'done') {
+    card.classList.add('done');
+    status.innerHTML = '<span style="color:var(--success)">✓ 已完成</span>';
+  } else {
+    status.innerHTML = '<span style="color:var(--sub)">' + state + '</span>';
+  }
+}
+
+function addFlow(item) {
+  var area = document.getElementById('flowArea');
+  var el = document.createElement('div');
+  var cls = 'flow-item';
+  if (item.type === 'coordinator') cls += ' fi-coordinator';
+  else if (item.type === 'researcher') cls += ' fi-researcher';
+  else if (item.type === 'developer') cls += ' fi-developer';
+  else if (item.type === 'tester') cls += ' fi-tester';
+  else cls += ' fi-event';
+
+  el.className = cls;
+  var html = '<div class="fi-label" style="color:' + item.color + '">' + item.label + '</div>';
+  html += '<div class="fi-text">' + item.text + '</div>';
+  if (item.detail) html += '<div class="fi-detail">' + item.detail + '</div>';
+  if (item.badge) html += '<div class="' + item.badge.class + '" style="margin-top:4px">' + item.badge.text + '</div>';
+  el.innerHTML = html;
+  area.appendChild(el);
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){
+    el.classList.add('show');
+  })});
+}
+
+var playTimer = null;
+
+function playStep() {
+  if (cur >= STEPS.length) return;
+  var s = STEPS[cur];
+
+  document.getElementById('agentCount').textContent = s.agents;
+  document.getElementById('eventCount').textContent = s.events;
+  document.getElementById('hint').textContent = s.hint;
+
+  var states = s.agentStates;
+  setAgentState('Researcher', states.researcher);
+  setAgentState('Developer', states.developer);
+  setAgentState('Tester', states.tester);
+
+  for (var i = 0; i < s.flow.length; i++) {
+    (function(item, delay){
+      setTimeout(function(){ addFlow(item); }, delay);
+    })(s.flow[i], i * 200);
+  }
+
+  var da = document.getElementById('decArea');
+  var dec = document.createElement('div');
+  dec.className = 'dec-card';
+  dec.innerHTML = s.decision;
+  da.innerHTML = '';
+  da.appendChild(dec);
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){
+    dec.classList.add('show');
+  })});
+
+  cur++;
+  if (cur >= STEPS.length) {
+    playTimer = null;
+  } else {
+    playTimer = setTimeout(playStep, 900);
+  }
+}
+
+function startPlay() {
+  if (playTimer) clearTimeout(playTimer);
+  playTimer = setTimeout(playStep, 300);
+}
+
+function reset() {
+  if (playTimer) clearTimeout(playTimer);
+  playTimer = null;
+  cur = 0;
+  document.getElementById('flowArea').innerHTML = '';
+  document.getElementById('decArea').innerHTML = '';
+  document.getElementById('agentCount').textContent = '0';
+  document.getElementById('eventCount').textContent = '0';
+  document.getElementById('hint').textContent = '自动播放中…';
+
+  setAgentState('Researcher','待分配');
+  setAgentState('Developer','待分配');
+  setAgentState('Tester','待分配');
+  startPlay();
+}
+
+lessonOnView(document.getElementById('flowDemo'), function() {
+  document.getElementById('hint').textContent = '自动播放中…';
+  startPlay();
+}, 0.2);
+
+
+// Keep original card interactions available to keyboard users, including cards rendered after initialization.
+(function() {
+  function enhance() {
+    document.querySelectorAll('div[onclick]').forEach(function(card) {
+      if (card.dataset.keyboardReady) return;
+      card.dataset.keyboardReady = 'true'; card.setAttribute('role','button'); card.tabIndex = 0;
+      // The shared embed handles keyboard activation once at document level.
+    });
+  }
+  enhance();
+  new MutationObserver(enhance).observe(document.body, {childList:true,subtree:true});
+})();
+</script>
+</body>
+</html>

@@ -27,3 +27,7 @@ server/.env.local
 
 # Local visual verification screenshots
 /artifacts/
+
+# HyperFrames local inspection cache and render outputs
+/public/demos/agent-workflow/.hyperframes/
+/public/demos/agent-workflow/renders/

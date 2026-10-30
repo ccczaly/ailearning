@@ -19,7 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Transactional
 class RemainingCoursesTests {
-    static final List<String> SLUGS=List.of("engineering-basics","rag","agents","mcp","multimodal","app-engineering","deployment");
+    static final List<String> SLUGS=List.of("engineering-basics","rag","mcp","multimodal","app-engineering","deployment");
     @Autowired MockMvc mvc;
     @Autowired JdbcTemplate jdbc;
     @Autowired LearningController learning;
@@ -66,7 +66,7 @@ class RemainingCoursesTests {
                 .andExpect(jsonPath("$.sections[1].hasQuiz").value(true)).andExpect(jsonPath("$.sections[1].questions").doesNotExist());
         }
     }
-    @Test void all56LessonsGradeAndStoreIndependentProgressWithPrivateHistory() throws Exception {
+    @Test void all48PracticeLessonsGradeAndStoreIndependentProgressWithPrivateHistory() throws Exception {
         String name=account(),other=account();
         for(String slug:SLUGS) {
             for(var lesson:lessons(slug)) {

@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="upstream-source" content="https://xueai.miyang.cn/slides/7-2b.html">
+<title>工具说明与参数契约对照 · LearnAI</title>
+<link rel="stylesheet" href="../shared/lesson.css">
+<style>
+/* ── 实验控制条 ── */
+.exp-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.exp-tabs{display:flex;gap:6px;flex-wrap:wrap}
+.exp-tab{padding:8px 16px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);cursor:pointer;font-size:13px;font-weight:700;color:var(--sub);font-family:inherit;transition:all .15s;min-height:40px}
+.exp-tab.active{border-color:var(--accent);background:rgba(0,102,255,.06);color:var(--accent)}
+.exp-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{padding:9px 18px;border-radius:8px;font-size:14px;font-weight:700;border:none;cursor:pointer;font-family:inherit;transition:all .15s;min-height:40px}
+.btn-p{background:var(--accent);color:white}
+.btn-p:hover{filter:brightness(1.1)}
+.btn-p:disabled{opacity:.3;cursor:not-allowed}
+.btn-r{background:rgba(0,0,0,.04);color:var(--sub);border:1px solid var(--border)}
+.ctrl-hint{font-size:12px;color:var(--sub);width:100%}
+
+/* ── 双列对比 ── */
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.col{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-card)}
+.col-hd{padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.col-badge{padding:4px 10px;border-radius:6px;font-size:12px;font-weight:800}
+.col-title{font-size:14px;font-weight:700;color:var(--text)}
+.col-body{padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+
+.tool-card{background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:12px 14px}
+.tc-hd{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.tc-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.tc-name{font-size:15px;font-weight:800;color:var(--text)}
+.tc-desc{font-size:13px;color:var(--sub);line-height:1.6;padding:8px 10px;border-radius:8px;margin-bottom:6px}
+.tc-params{display:flex;flex-direction:column;gap:3px}
+.tc-param{display:flex;align-items:center;gap:6px;font-size:12.5px;padding:4px 8px;border-radius:6px;background:rgba(0,0,0,.03)}
+.tc-param-name{font-weight:700;color:var(--text);min-width:60px}
+.tc-param-type{color:var(--sub);font-weight:600}
+.tc-param-hint{color:var(--sub);margin-left:auto;font-size:11px}
+
+.sim-area{background:var(--card);border:1.5px solid var(--border);border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
+.sim-hd{padding:8px 12px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700;color:var(--sub);display:flex;align-items:center;justify-content:space-between}
+.sim-body{padding:10px 12px;display:flex;flex-direction:column;gap:6px;min-height:120px}
+.sim-msg{border-radius:8px;padding:8px 11px;font-size:13px;line-height:1.6;opacity:0;transform:translateY(5px);transition:all .3s}
+.sim-msg.show{opacity:1;transform:translateY(0)}
+.sim-msg-role{font-size:10px;font-weight:800;letter-spacing:.4px;margin-bottom:3px}
+
+.result-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:800}
+
+.debate{background:rgba(124,58,237,.04);border:1.5px solid rgba(124,58,237,.15);border-radius:var(--radius);padding:18px 22px;font-size:14px;color:var(--text);line-height:1.65}
+.debate b{color:var(--purple)}
+
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px)}40%{transform:translateX(4px)}60%{transform:translateX(-2px)}80%{transform:translateX(2px)}}
+.shake{animation:shake .4s ease}
+
+@media (max-width:768px){
+  .cmp{grid-template-columns:1fr}
+}
+
+:root{--green:var(--success);--orange:var(--amber);--red:var(--danger);--muted:var(--sub)}.adaptation-note{font-size:13px;line-height:1.75;color:var(--sub);padding:12px 15px;border:1px solid var(--border);border-radius:10px;margin:0 0 18px;background:var(--card)}pre{max-width:100%;overflow:auto}.tank-slider{min-height:32px}</style>
+</head>
+<body>
+<!-- Copyright (c) 2026 洛小山 · Miyang Tech (Zhuhai Hengqin) Co., Ltd.
+     Adapted by LearnAI from the public itshen/learn-ai source, AGPL-3.0. -->
+<article class="lesson wide">
+<p class="adaptation-note">三个场景同时改变描述、参数约定或可用能力，属于教学对照，不是只改变一个变量的真实模型实验。订酒店与发邮件均只展示虚构回执。</p>
+<div class="exp-bar">
+    <div class="exp-tabs" id="expTabs"></div>
+    <div class="exp-actions">
+      <button class="btn btn-p" id="btnRun" onclick="runExperiment()">▶ 运行实验</button>
+      <button class="btn btn-r" onclick="resetExp()">重置</button>
+    </div>
+    <span class="ctrl-hint" id="expHint">选择实验 → 点击运行</span>
+  </div>
+
+  <div class="cmp  ">
+    <div class="col">
+      <div class="col-hd">
+        <span class="col-title">❌ 坏描述</span>
+        <span class="col-badge" style="background:rgba(220,38,38,.08);color:var(--danger)">含糊、缺关键信息</span>
+      </div>
+      <div class="col-body" id="leftCol"></div>
+    </div>
+    <div class="col">
+      <div class="col-hd">
+        <span class="col-title">✅ 好描述</span>
+        <span class="col-badge" style="background:rgba(22,163,74,.08);color:var(--success)">精确、有约束</span>
+      </div>
+      <div class="col-body" id="rightCol"></div>
+    </div>
+  </div>
+
+  <div class="sec-label ">工具契约的设计观察</div>
+  <div class="l-cols ">
+    <div class="l-callout">
+      <b>核心结论：</b>工具描述 = 给模型的使用说明书。清楚的描述与参数约束有助于减少误用，仍需应用校验。这不只是工程问题。<b>产品经理应该像写 PRD 一样写工具描述。</b>
+    </div>
+    <div class="debate">
+      <b>思辨：</b>工具描述是 Prompt Engineering 的延伸吗？是的。工具描述本质上就是结构化的 Prompt。Prompt 的所有技巧（具体、有例子、有约束）在这里同样适用。
+    </div>
+  </div>
+</article>
+<script src="../shared/embed.js"></script>
+<script src="../shared/lesson.js"></script>
+<script>
+var EXPS = [
+  {
+    name: '订酒店',
+    user: '帮我订上海外滩附近的酒店，明天入住两晚。',
+    bad: {
+      card: {icon:'🏨',iconBg:'rgba(220,38,38,.08)',name:'book_hotel',
+        desc:'订酒店',descBg:'rgba(220,38,38,.04)',
+        params:[
+          {name:'地点',type:'文字',hint:''},
+          {name:'时间',type:'文字',hint:''},
+          {name:'人数',type:'数字',hint:''}
+        ]},
+      steps:[
+        {role:'教学决策摘要',color:'var(--purple)',bg:'rgba(124,58,237,.04)',text:'用户要订酒店，用 book_hotel。地点是上海外滩，时间是明天。'},
+        {role:'模型输出',color:'var(--purple)',bg:'rgba(124,58,237,.06)',text:'使用工具：book_hotel\n地点 → 上海外滩附近\n时间 → 明天\n人数 → 1'},
+        {role:'API 返回',color:'var(--danger)',bg:'rgba(220,38,38,.04)',shake:true,text:'❌ 错误 400：「时间」字段无法解析。系统不认识「明天」。'},
+        {role:'模型重试',color:'var(--purple)',bg:'rgba(124,58,237,.04)',text:'换个格式试试…时间 → 04/23'},
+        {role:'API 返回',color:'var(--danger)',bg:'rgba(220,38,38,.04)',shake:true,text:'❌ 错误 400：日期必须包含年份。'},
+        {role:'结果',color:'var(--danger)',bg:'rgba(220,38,38,.06)',text:'本例预设：含糊的日期参数引发多次失败。次数和结果不是实测。'}
+      ]
+    },
+    good: {
+      card: {icon:'🏨',iconBg:'rgba(22,163,74,.08)',name:'book_hotel',
+        desc:'预订酒店房间。返回订单确认信息。注意：日期必须是 YYYY-MM-DD 格式；退房日期必须晚于入住日期。',descBg:'rgba(22,163,74,.04)',
+        params:[
+          {name:'城市',type:'文字',hint:'如：上海'},
+          {name:'入住日期',type:'文字',hint:'格式：YYYY-MM-DD'},
+          {name:'退房日期',type:'文字',hint:'格式：YYYY-MM-DD'},
+          {name:'入住人数',type:'数字',hint:'默认 1'}
+        ]},
+      steps:[
+        {role:'教学决策摘要',color:'var(--purple)',bg:'rgba(124,58,237,.04)',text:'用户要订酒店。描述说日期必须 YYYY-MM-DD。明天是 2026-04-23，住两晚退房 04-25。'},
+        {role:'模型输出',color:'var(--purple)',bg:'rgba(124,58,237,.06)',text:'使用工具：book_hotel\n城市 → 上海\n入住日期 → 2026-04-23\n退房日期 → 2026-04-25\n入住人数 → 1'},
+        {role:'API 返回',color:'var(--success)',bg:'rgba(22,163,74,.04)',text:'✅ 预订成功！上海外滩茂悦大酒店，4/23-4/25，2晚 ¥2,560。'},
+        {role:'结果',color:'var(--success)',bg:'rgba(22,163,74,.06)',text:'本例预设：使用明确日期格式，一次得到模拟回执；不代表实际成功率。'}
+      ]
+    }
+  },
+  {
+    name: '发邮件',
+    user: '给张三发一封邮件，告诉他明天会议改到下午3点。',
+    bad: {
+      card: {icon:'📧',iconBg:'rgba(220,38,38,.08)',name:'send_email',
+        desc:'发送邮件',descBg:'rgba(220,38,38,.04)',
+        params:[
+          {name:'收件人',type:'文字',hint:''},
+          {name:'内容',type:'文字',hint:''}
+        ]},
+      steps:[
+        {role:'教学决策摘要',color:'var(--purple)',bg:'rgba(124,58,237,.04)',text:'要发邮件给张三。收件人填「张三」…'},
+        {role:'模型输出',color:'var(--purple)',bg:'rgba(124,58,237,.06)',text:'使用工具：send_email\n收件人 → 张三\n内容 → 明天会议改到下午3点'},
+        {role:'API 返回',color:'var(--danger)',bg:'rgba(220,38,38,.04)',shake:true,text:'❌ 错误：收件人必须是邮箱地址，不是人名。'},
+        {role:'模型重试',color:'var(--purple)',bg:'rgba(124,58,237,.04)',text:'我不知道张三的邮箱…只能编一个？收件人 → zhangsan@company.com'},
+        {role:'结果',color:'var(--danger)',bg:'rgba(220,38,38,.06)',text:'模型编造了邮箱地址！邮件发到了不存在的地址，或者更糟，发给了错误的人。'}
+      ]
+    },
+    good: {
+      card: {icon:'📧',iconBg:'rgba(22,163,74,.08)',name:'send_email',
+        desc:'发送邮件给指定联系人。如果用户提供的是人名，先调用 find_contact 查找邮箱。邮件支持纯文本和 HTML 两种格式。',descBg:'rgba(22,163,74,.04)',
+        params:[
+          {name:'收件人邮箱',type:'文字',hint:'如：xx@xx.com'},
+          {name:'主题',type:'文字',hint:'邮件标题'},
+          {name:'正文',type:'文字',hint:'支持纯文本或 HTML'},
+          {name:'格式',type:'文字',hint:'text 或 html，默认 text'}
+        ]},
+      steps:[
+        {role:'教学决策摘要',color:'var(--purple)',bg:'rgba(124,58,237,.04)',text:'用户要发邮件给张三，但描述说需要邮箱。用户给的是人名，描述提示我先用 find_contact 查找。'},
+        {role:'预设：先查联系人',color:'var(--cyan)',bg:'rgba(8,145,178,.04)',text:'使用工具：find_contact\n姓名 → 张三\n→ 返回：zhangsan@realcompany.com'},
+        {role:'预设：再发邮件',color:'var(--purple)',bg:'rgba(124,58,237,.06)',text:'使用工具：send_email\n收件人邮箱 → zhangsan@realcompany.com\n主题 → 会议时间变更通知\n正文 → 张三你好，明天会议改到下午3点。'},
+        {role:'结果',color:'var(--success)',bg:'rgba(22,163,74,.06)',text:'✅ 邮件发送成功。没有编造地址，流程正确。'}
+      ]
+    }
+  },
+  {
+    name: '搜索文件',
+    user: '帮我找到上周写的那份竞品分析文档。',
+    bad: {
+      card: {icon:'📂',iconBg:'rgba(220,38,38,.08)',name:'search',
+        desc:'搜索',descBg:'rgba(220,38,38,.04)',
+        params:[
+          {name:'关键词',type:'文字',hint:''}
+        ]},
+      steps:[
+        {role:'教学决策摘要',color:'var(--purple)',bg:'rgba(124,58,237,.04)',text:'用户要搜索文件，用 search 工具。关键词…「竞品分析」？'},
+        {role:'模型输出',color:'var(--purple)',bg:'rgba(124,58,237,.06)',text:'使用工具：search\n关键词 → 竞品分析'},
+        {role:'返回',color:'var(--amber)',bg:'rgba(215,119,6,.04)',text:'返回 200 条结果…太多了，无法判断哪个是用户要的。'},
+        {role:'模型困惑',color:'var(--purple)',bg:'rgba(124,58,237,.04)',text:'结果太多，我再加关键词试试？「竞品分析 上周」？但 search 工具不支持按时间筛选…'},
+        {role:'结果',color:'var(--danger)',bg:'rgba(220,38,38,.06)',text:'来回调用 5 次仍未找到。因为工具描述太简单，模型无从判断该如何精准检索。'}
+      ]
+    },
+    good: {
+      card: {icon:'📂',iconBg:'rgba(22,163,74,.08)',name:'search_files',
+        desc:'在用户的文件库中搜索文档。支持关键词搜索和时间范围筛选。结果按相关性排序，最多返回 10 条。',descBg:'rgba(22,163,74,.04)',
+        params:[
+          {name:'关键词',type:'文字',hint:'搜索词'},
+          {name:'文件类型',type:'文字',hint:'doc/pdf/md，可选'},
+          {name:'时间范围',type:'文字',hint:'如：last_week，可选'},
+          {name:'排序方式',type:'文字',hint:'relevance 或 date，默认 relevance'}
+        ]},
+      steps:[
+        {role:'教学决策摘要',color:'var(--purple)',bg:'rgba(124,58,237,.04)',text:'用户找上周的文档。描述说支持时间筛选，我用 time_range=last_week 缩小范围。'},
+        {role:'模型输出',color:'var(--purple)',bg:'rgba(124,58,237,.06)',text:'使用工具：search_files\n关键词 → 竞品分析\n时间范围 → last_week\n排序方式 → date'},
+        {role:'返回',color:'var(--success)',bg:'rgba(22,163,74,.04)',text:'✅ 找到 2 条结果，最新一条：「竞品分析报告_v3.docx」，上周三创建。'},
+        {role:'结果',color:'var(--success)',bg:'rgba(22,163,74,.06)',text:'一次命中。好描述告诉模型有时间筛选能力→模型会主动使用→精准高效。'}
+      ]
+    }
+  }
+];
+
+var curExp = 0, curBadStep = 0, curGoodStep = 0, running = false;
+
+function buildTabs() {
+  var html = '';
+  for (var i = 0; i < EXPS.length; i++) {
+    html += '<button class="exp-tab' + (i === curExp ? ' active' : '') + '" onclick="pickExp(' + i + ')">' + EXPS[i].name + '</button>';
+  }
+  document.getElementById('expTabs').innerHTML = html;
+}
+
+function pickExp(i) {
+  curExp = i;
+  buildTabs();
+  resetExp();
+}
+
+function renderToolCard(data, container) {
+  var html = '<div class="tool-card"><div class="tc-hd">' +
+    '<div class="tc-icon" style="background:' + data.icon_bg + '">' + data.icon + '</div>' +
+    '<div class="tc-name">' + data.name + '</div></div>' +
+    '<div class="tc-desc" style="background:' + data.descBg + '">' + data.desc + '</div>' +
+    '<div class="tc-params">';
+  for (var j = 0; j < data.params.length; j++) {
+    var p = data.params[j];
+    html += '<div class="tc-param"><span class="tc-param-name">' + p.name + '</span><span class="tc-param-type">' + p.type + '</span>' +
+      (p.hint ? '<span class="tc-param-hint">' + p.hint + '</span>' : '') + '</div>';
+  }
+  html += '</div></div>';
+  return html;
+}
+
+function resetExp() {
+  curBadStep = 0;
+  curGoodStep = 0;
+  running = false;
+  var exp = EXPS[curExp];
+  var bad = exp.bad, good = exp.good;
+
+  var leftHtml = renderToolCard({icon:bad.card.icon,icon_bg:bad.card.iconBg,name:bad.card.name,desc:bad.card.desc,descBg:bad.card.descBg,params:bad.card.params}, 'leftCol');
+  leftHtml += '<div style="font-size:12px;font-weight:700;color:var(--sub);margin-top:2px">用户指令</div>';
+  leftHtml += '<div style="background:rgba(8,145,178,.04);border:1px solid rgba(8,145,178,.15);border-radius:8px;padding:8px 10px;font-size:13px;color:var(--text)">' + exp.user + '</div>';
+  leftHtml += '<div class="sim-area"><div class="sim-hd"><span>预设执行过程</span><span id="badCount">0 / ' + bad.steps.length + '</span></div><div class="sim-body" id="badSim"></div></div>';
+  document.getElementById('leftCol').innerHTML = leftHtml;
+
+  var rightHtml = renderToolCard({icon:good.card.icon,icon_bg:good.card.iconBg,name:good.card.name,desc:good.card.desc,descBg:good.card.descBg,params:good.card.params}, 'rightCol');
+  rightHtml += '<div style="font-size:12px;font-weight:700;color:var(--sub);margin-top:2px">用户指令</div>';
+  rightHtml += '<div style="background:rgba(8,145,178,.04);border:1px solid rgba(8,145,178,.15);border-radius:8px;padding:8px 10px;font-size:13px;color:var(--text)">' + exp.user + '</div>';
+  rightHtml += '<div class="sim-area"><div class="sim-hd"><span>预设执行过程</span><span id="goodCount">0 / ' + good.steps.length + '</span></div><div class="sim-body" id="goodSim"></div></div>';
+  document.getElementById('rightCol').innerHTML = rightHtml;
+
+  document.getElementById('btnRun').disabled = false;
+  document.getElementById('btnRun').textContent = '▶ 运行实验';
+  document.getElementById('expHint').textContent = '点击运行 → 对比坏描述 vs 好描述的效果差异';
+}
+
+function addSimMsg(containerId, step) {
+  var el = document.createElement('div');
+  el.className = 'sim-msg';
+  el.style.background = step.bg;
+  el.style.border = '1px solid rgba(0,0,0,.06)';
+  el.innerHTML = '<div class="sim-msg-role" style="color:' + step.color + '">' + step.role + '</div>' +
+    '<div style="white-space:pre-line">' + step.text + '</div>';
+  document.getElementById(containerId).appendChild(el);
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      el.classList.add('show');
+      if (step.shake) setTimeout(function() { el.classList.add('shake'); }, 300);
+    });
+  });
+}
+
+function runExperiment() {
+  if (running) return;
+  var exp = EXPS[curExp];
+  var bad = exp.bad, good = exp.good;
+  var maxSteps = Math.max(bad.steps.length, good.steps.length);
+
+  if (curBadStep >= bad.steps.length && curGoodStep >= good.steps.length) return;
+
+  running = true;
+  document.getElementById('btnRun').disabled = true;
+
+  var step = 0;
+  function tick() {
+    if (step >= maxSteps) {
+      running = false;
+      document.getElementById('btnRun').textContent = '✓ 实验完成';
+      document.getElementById('expHint').textContent = '对照完成：描述、参数契约和可用工具能力共同影响执行路径';
+      return;
+    }
+    if (step < bad.steps.length) {
+      addSimMsg('badSim', bad.steps[step]);
+      curBadStep = step + 1;
+      document.getElementById('badCount').textContent = curBadStep + ' / ' + bad.steps.length;
+    }
+    if (step < good.steps.length) {
+      addSimMsg('goodSim', good.steps[step]);
+      curGoodStep = step + 1;
+      document.getElementById('goodCount').textContent = curGoodStep + ' / ' + good.steps.length;
+    }
+    step++;
+    setTimeout(tick, 900);
+  }
+  tick();
+}
+
+buildTabs();
+resetExp();
+</script>
+</body>
+</html>
