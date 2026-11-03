@@ -1,0 +1,24 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { schedulePlan, moduleOrder } from '../src/learning-plan.ts';
+
+const preferences = { goal: 'agent', level: 'beginner', minutes: 30, days: [1, 3] };
+const lesson = { id: 1, slug: 'agents', title: '工具调用', module: 'Agent', minutes: 75, completed: false };
+test('排程仅使用所选学习日，拆分长课节并遵守每日预算', () => {
+  const tasks = schedulePlan([lesson], preferences, '2026-11-02');
+  assert.deepEqual(tasks.map(item => [item.date, item.duration]), [['2026-11-02', 30], ['2026-11-04', 30], ['2026-11-09', 15]]);
+  assert.deepEqual(tasks.map(item => [item.part, item.parts]), [[1, 3], [2, 3], [3, 3]]);
+  assert.equal(tasks.reduce((sum, item) => sum + item.duration, 0), 75);
+});
+test('排除已完成课节，并使用当日剩余时间接续下一节', () => {
+  const tasks = schedulePlan([{ ...lesson, completed: true }, { ...lesson, id: 2, minutes: 20 }, { ...lesson, id: 3, minutes: 20 }], preferences, '2026-11-03');
+  assert.deepEqual(tasks.map(item => [item.id, item.date, item.duration]), [[2, '2026-11-04', 20], [3, '2026-11-04', 10], [3, '2026-11-09', 10]]);
+});
+test('全部完成或未选择学习日时没有待办', () => {
+  assert.deepEqual(schedulePlan([{ ...lesson, completed: true }], preferences, '2026-11-02'), []);
+  assert.deepEqual(schedulePlan([lesson], { ...preferences, days: [] }, '2026-11-02'), []);
+});
+test('基础和学习目标决定课程路径', () => {
+  assert.deepEqual(moduleOrder(preferences), ['engineering-basics', 'llm-app-dev', 'agents']);
+  assert.deepEqual(moduleOrder({ ...preferences, goal: 'rag', level: 'familiar' }), ['llm-app-dev', 'rag']);
+});

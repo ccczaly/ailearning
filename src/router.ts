@@ -3,10 +3,12 @@ import { auth, restore } from './auth';
 import HomeView from './components/HomeView.vue';
 import LoginView from './components/LoginView.vue';
 import KnowledgeView from './components/KnowledgeView.vue';
+import LearningPlanView from './components/LearningPlanView.vue';
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/', component: HomeView, meta: { requiresAuth: true } },
+    { path: '/learning-plan', component: LearningPlanView, meta: { requiresAuth: true } },
     { path: '/knowledge/:slug', component: KnowledgeView, meta: { requiresAuth: true } },
     { path: '/login', component: LoginView },
     { path: '/register', component: LoginView },

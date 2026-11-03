@@ -40,7 +40,7 @@ onMounted(loadModules);
     <a class="brand" href="./"><span aria-hidden="true">✦</span> LearnAI</a>
     <nav aria-label="主导航">
       <a class="active" href="./" aria-current="page">首页</a
-      ><button @click="settingsOpen = true">设置</button>
+      ><RouterLink to="/learning-plan">学习计划</RouterLink><button @click="settingsOpen = true">设置</button>
     </nav>
     <div class="header-actions">
       <button class="home-tutor" @click="askTutor()">✧ 小包子助教</button>
