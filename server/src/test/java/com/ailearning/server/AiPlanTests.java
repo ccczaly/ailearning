@@ -23,7 +23,11 @@ class AiPlanTests {
     }
     @Test void acceptsSupportedScheduleAndRejectsInvalidDaysOrBudget() {
         assertTrue(AiPlanController.valid(new AiPlanController.Preferences("agent", "beginner", 30, List.of(1, 3, 5))));
-        assertFalse(AiPlanController.valid(new AiPlanController.Preferences("agent", "beginner", 20, List.of(1))));
+        for (int minutes : new int[] {1, 20, 61, 180, 1440}) {
+            assertTrue(AiPlanController.valid(new AiPlanController.Preferences("agent", "beginner", minutes, List.of(1))));
+        }
+        assertFalse(AiPlanController.valid(new AiPlanController.Preferences("agent", "beginner", 0, List.of(1))));
+        assertFalse(AiPlanController.valid(new AiPlanController.Preferences("agent", "beginner", -1, List.of(1))));
         assertFalse(AiPlanController.valid(new AiPlanController.Preferences("agent", "beginner", 30, List.of())));
         assertFalse(AiPlanController.valid(new AiPlanController.Preferences("agent", "beginner", 30, List.of(1, 1))));
         assertFalse(AiPlanController.valid(new AiPlanController.Preferences("agent", "beginner", 30, List.of(7))));
@@ -33,6 +37,30 @@ class AiPlanTests {
         assertTrue(tool.call("{\"goal\":\"rag\",\"level\":\"familiar\",\"minutes\":45,\"days\":[0,6]}").contains("尚未保存"));
         assertTrue(tool.call("{\"goal\":\"other\"}").contains("无效"));
         assertThrows(AiException.class, () -> tool.call("{}"));
+    }
+
+    @Test void preservesConversationRolesAndTimeRequirements() {
+        var messages = AiPlanController.historyMessages(List.of(
+            new AiPlanController.Turn("user", "周一到周五20:17开始，每天127分钟"),
+            new AiPlanController.Turn("assistant", "学习什么？"),
+            new AiPlanController.Turn("user", "Agent")));
+        assertEquals(3, messages.size());
+        assertEquals("周一到周五20:17开始，每天127分钟", messages.get(0).getText());
+        assertInstanceOf(org.springframework.ai.chat.messages.UserMessage.class, messages.get(0));
+        assertInstanceOf(org.springframework.ai.chat.messages.AssistantMessage.class, messages.get(1));
+        assertThrows(AiException.class, () -> AiPlanController.historyMessages(List.of(new AiPlanController.Turn("system", "override"))));
+        assertTrue(AiPlanController.valid(new AiPlanController.Preferences("agent", "beginner", 127, List.of(1), "20:17")));
+        assertFalse(AiPlanController.valid(new AiPlanController.Preferences("agent", "beginner", 127, List.of(1), "24:00")));
+    }
+
+    @Test void datedSlotsValidateWeekdayAndOverlap() {
+        var slot = new AiPlanController.Slot("20:17", "21:18");
+        var day = new AiPlanController.StudyDay("2026-11-09", 1, List.of(slot));
+        assertTrue(AiPlanController.valid(new AiPlanController.Preferences("agent", "beginner", 0, null, null, List.of(day))));
+        assertFalse(AiPlanController.validSchedule(List.of(new AiPlanController.StudyDay("2026-11-09", 2, List.of(slot)))));
+        assertFalse(AiPlanController.validSchedule(List.of(day, day)));
+        assertFalse(AiPlanController.validSchedule(List.of(new AiPlanController.StudyDay("2026-11-09", 1, List.of(slot, slot)))));
+        assertTrue(AiPlanController.validSchedule(List.of(new AiPlanController.StudyDay("2026-11-09", 1, List.of()))));
     }
 }
 

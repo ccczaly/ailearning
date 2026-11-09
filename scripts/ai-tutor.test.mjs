@@ -42,6 +42,7 @@ async function mount({ props = {}, local = storage(), session = storage(), list,
   const calls = [];
   const id = ++sequence;
   const context = {
+    async api(url, options) { calls.push({ type: 'plan', body: JSON.parse(options.body) }); return {message: '请补充学习目标', proposal: null}; },
     auth: reactive({ user: { id: 1 }, ready: true }),
     async listConversations(sectionId, signal) { calls.push({ type: 'list', sectionId, signal }); return list ? list(sectionId, signal) : [conversation(3), conversation(2)]; },
     async listMessages(conversationId, signal) { calls.push({ type: 'messages', id: conversationId, signal }); return load ? load(conversationId, signal) : [message(`回答 ${conversationId}`)]; },
@@ -55,10 +56,16 @@ async function mount({ props = {}, local = storage(), session = storage(), list,
   contexts.set(id, context);
   const contextCode = `const context = globalThis.__aiTutorTestContexts.get(${id});`;
   const aiUrl = moduleUrl(`${contextCode} export const listConversations = context.listConversations; export const listMessages = context.listMessages; export const streamAiChat = context.streamAiChat; export const aiErrorText = error => error.message ?? '加载失败';`);
+  const apiUrl = moduleUrl(`${contextCode} export const api = context.api;`);
   const authUrl = moduleUrl(`${contextCode} export const auth = context.auth;`);
   const imageUrl = moduleUrl("export default '';");
   const markdownUrl = moduleUrl('export const renderAiMarkdown = value => value;');
+  const routerUrl = moduleUrl('export const useRouter = () => ({ push: async () => {} });');
+  const proposalUrl = moduleUrl('export const pendingPlanProposal = { value: null };');
   const compiled = script
+    .replaceAll("from 'vue-router'", `from '${routerUrl}'`)
+    .replaceAll("from '../plan-proposal'", `from '${proposalUrl}'`)
+    .replaceAll("from '../api'", `from '${apiUrl}'`)
     .replaceAll("from 'vue'", `from '${vueUrl}'`)
     .replaceAll("from '../ai'", `from '${aiUrl}'`)
     .replaceAll("from '../auth'", `from '${authUrl}'`)
@@ -202,5 +209,23 @@ test('completed replies store structured actions without inserting them into tex
     assert.equal(reply.content, '已完成 8 节');
     assert.deepEqual(reply.actions, actions);
     assert.equal(reply.status, 'COMPLETED');
+  } finally { tutor.unmount(); }
+});
+
+
+test('plan entry shares the regular conversation and sends plan context through chat', async () => {
+  const planContext = { goal: 'agent', level: 'beginner', minutes: 127, days: [1], startTime: '20:17' };
+  const tutor = await mount({ props: { planContext } });
+  try {
+    await tutor.exposed.openPlan();
+    await tutor.state.send('周一晚上20:17学习127分钟');
+    await tutor.state.send('先解释一下Agent');
+    await tutor.state.send('按刚才的时间安排');
+    const requests = tutor.calls.filter(call => call.type === 'chat');
+    assert.equal(requests.length, 3);
+    assert.equal(tutor.calls.some(call => call.type === 'plan'), false);
+    assert.deepEqual(requests[2].request.planContext, planContext);
+    assert.equal(requests[2].request.conversationId, requests[0].request.conversationId);
+    assert.equal(tutor.state.messages.filter(message => message.role === 'user').length, 3);
   } finally { tutor.unmount(); }
 });

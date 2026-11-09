@@ -20,7 +20,9 @@ public class AiController {
         this.ai = ai;
     }
 
-    public record ChatRequest(String message, Long sectionId, Long conversationId) {}
+    public record ChatRequest(String message, Long sectionId, Long conversationId, AiPlanController.Preferences planContext) {
+        public ChatRequest(String message, Long sectionId, Long conversationId) { this(message, sectionId, conversationId, null); }
+    }
 
     @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public ResponseEntity<SseEmitter> chat(@RequestBody ChatRequest request, Authentication authentication) {

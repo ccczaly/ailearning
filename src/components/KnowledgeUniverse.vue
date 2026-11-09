@@ -72,7 +72,8 @@ onBeforeUnmount(() => {
       class="universe-stage"
     >
       <div class="scene-halo" aria-hidden="true" />
-      <div class="mentor">
+      <!-- 开发阶段暂时隐藏动漫形象，恢复时移除 v-if。 -->
+      <div v-if="false" class="mentor">
         <div class="mentor-platform" aria-hidden="true" />
         <img
           class="mentor-image"

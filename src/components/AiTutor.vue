@@ -6,9 +6,14 @@ import { auth } from '../auth';
 import { createAiDrawerState, createAiHistory } from '../ai-history';
 import type { AiHistoryContext } from '../ai-history';
 import { renderAiMarkdown } from '../ai-markdown';
+import type { Preferences } from '../learning-plan';
+import { useRouter } from 'vue-router';
+import { pendingPlanProposal } from '../plan-proposal';
 import mentorImage from '../assets/xiaobaozi.png';
 
-const props = withDefaults(defineProps<{ sectionId?: number; sectionTitle?: string; contextReady?: boolean }>(), { contextReady: true });
+const props = withDefaults(defineProps<{ sectionId?: number; sectionTitle?: string; contextReady?: boolean; planContext?: Preferences }>(), { contextReady: true });
+const router = useRouter();
+const emit = defineEmits<{ proposal: [value: Preferences] }>();
 type DisplayMessage = Omit<AiMessage, 'status'> & { status: AiMessage['status'] | 'GENERATING' };
 const visible = ref(false);
 const dialog = ref<HTMLElement>();
@@ -109,7 +114,8 @@ async function open(question?: string) {
   if (visible.value && current === revision) input.value?.focus();
   if (question && restored && visible.value && current === revision) await send();
 }
-defineExpose({ open });
+async function openPlan() { await open(); }
+defineExpose({ open, openPlan });
 
 function restoreOpenDrawer() {
   if (!mayAutoRestore || props.contextReady === false || !auth.user) return;
@@ -159,7 +165,7 @@ async function send(question = draft.value) {
   await scrollToBottom();
   try {
     if (controller.signal.aborted || current !== revision || !visible.value) return;
-    await streamAiChat({ message, sectionId: context.sectionId, conversationId: conversationId.value }, {
+    await streamAiChat({ message, sectionId: context.sectionId, conversationId: conversationId.value, planContext: props.planContext }, {
       meta(data) {
         if (current !== revision || controller.signal.aborted || !visible.value) return;
         conversationId.value = data.conversationId;
@@ -169,9 +175,17 @@ async function send(question = draft.value) {
         }
       },
       delta(text) { if (current === revision && !controller.signal.aborted) assistant.content += text; },
-      done(actions = []) {
+      done(actions = [], proposals = []) {
         if (current === revision && !controller.signal.aborted) {
           assistant.actions = actions; assistant.status = 'COMPLETED';
+          if (proposals[0]) {
+            if (props.planContext) emit('proposal', proposals[0]);
+            else {
+              pendingPlanProposal.value = { userId: context.userId, preferences: proposals[0] };
+              void router.push('/learning-plan');
+            }
+            close();
+          }
           void scrollToBottom();
         }
       },

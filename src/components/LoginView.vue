@@ -11,6 +11,8 @@ const confirmation = ref('');
 const registering = computed(() => route.path === '/register');
 const busy = ref(false);
 const error = ref('');
+// 开发阶段暂时隐藏背景视频，恢复时将开关设为 true。
+const showBackgroundVideo = false;
 const backgroundVideo = `${import.meta.env.BASE_URL}media/login-background.mp4`;
 const backgroundPoster = `${import.meta.env.BASE_URL}media/login-background.jpg`;
 watch(registering, () => { password.value = ''; confirmation.value = ''; error.value = ''; });
@@ -49,7 +51,7 @@ async function submit() {
 <template>
   <main class="login-page">
     <video
-      v-if="!registering"
+      v-if="showBackgroundVideo && !registering"
       class="login-background"
       :src="backgroundVideo"
       :poster="backgroundPoster"
@@ -61,7 +63,7 @@ async function submit() {
       aria-hidden="true"
       tabindex="-1"
     ></video>
-    <div v-if="!registering" class="login-overlay" aria-hidden="true"></div>
+    <div v-if="showBackgroundVideo && !registering" class="login-overlay" aria-hidden="true"></div>
     <section class="login-card">
       <div class="login-brand">✦ LearnAI</div>
       <p class="login-eyebrow">开启你的 AI 学习之旅</p>

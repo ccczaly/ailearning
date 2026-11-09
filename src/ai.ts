@@ -1,13 +1,14 @@
+import type { Preferences } from './learning-plan';
 import { api, ApiError, clearCsrf, refreshCsrf } from './api';
 
 export type AiConversation = { id: number; title: string; sectionId: number | null; updatedAt: string };
 export type AiAction = { type: 'continue_learning' | 'review_course'; label: string; url: string };
 export type AiMessage = { id?: number; role: 'user' | 'assistant'; content: string; status: 'COMPLETED' | 'CANCELLED' | 'FAILED'; createdAt?: string; actions?: AiAction[] };
-export type ChatRequest = { message: string; sectionId?: number; conversationId?: number };
+export type ChatRequest = { message: string; sectionId?: number; conversationId?: number; planContext?: Preferences };
 type ChatCallbacks = {
   meta: (data: { conversationId: number; sectionId: number | null }) => void;
   delta: (text: string) => void;
-  done: (actions: AiAction[]) => void;
+  done: (actions: AiAction[], proposals?: Preferences[]) => void;
 };
 
 export function listConversations(sectionId?: number, signal?: AbortSignal) {
@@ -88,7 +89,7 @@ export async function consumeAiStream(body: ReadableStream<Uint8Array>, callback
     }
     if (event === 'done') {
       if (data.status !== 'COMPLETED') throw new ApiError(502, 'AI_PROTOCOL_ERROR');
-      completed = true; callbacks.done(parseAiActions(data.actions));
+      completed = true; callbacks.done(parseAiActions(data.actions), Array.isArray(data.proposals) ? data.proposals : []);
     }
   });
   const abort = () => { void reader.cancel().catch(() => {}); };
@@ -133,7 +134,7 @@ export async function streamAiChat(request: ChatRequest, callbacks: ChatCallback
 export function aiErrorText(error: unknown): string {
   if (!(error instanceof ApiError)) return '连接中断，请检查网络后手动重试。';
   const messages: Record<string, string> = {
-    AI_UNAVAILABLE: 'AI 助教暂不可用，请联系管理员检查配置。',
+    AI_UNAVAILABLE: '本次 AI 请求失败，请重试；若持续失败，请检查后端日志。',
     AI_BALANCE_INSUFFICIENT: 'AI 账户余额不足，请联系管理员充值后再试。',
     AI_CREDENTIALS_INVALID: 'AI 服务凭据不可用，请联系管理员检查配置。',
     AI_PROVIDER_BUSY: 'AI 服务正忙，请稍后手动重试。',

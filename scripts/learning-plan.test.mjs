@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { schedulePlan, moduleOrder } from '../src/learning-plan.ts';
+import { schedulePlan, moduleOrder, validSchedule } from '../src/learning-plan.ts';
 
 const preferences = { goal: 'agent', level: 'beginner', minutes: 30, days: [1, 3] };
 const lesson = { id: 1, slug: 'agents', title: '工具调用', module: 'Agent', minutes: 75, completed: false };
@@ -21,4 +21,33 @@ test('全部完成或未选择学习日时没有待办', () => {
 test('基础和学习目标决定课程路径', () => {
   assert.deepEqual(moduleOrder(preferences), ['engineering-basics', 'llm-app-dev', 'agents']);
   assert.deepEqual(moduleOrder({ ...preferences, goal: 'rag', level: 'familiar' }), ['llm-app-dev', 'rag']);
+});
+
+test('支持一分钟及超过一小时的任意整数预算', () => {
+  const minuteTasks = schedulePlan([{ ...lesson, minutes: 3 }], { ...preferences, minutes: 1 }, '2026-11-02');
+  assert.deepEqual(minuteTasks.map(item => item.duration), [1, 1, 1]);
+  const longTasks = schedulePlan([lesson], { ...preferences, minutes: 127 }, '2026-11-02');
+  assert.deepEqual(longTasks.map(item => [item.date, item.duration]), [['2026-11-02', 75]]);
+});
+
+test('具体日期的多个时段按分钟排课，保留中间休息', () => {
+  const schedule = [
+    { date: '2026-11-09', weekday: 1, slots: [{ startTime: '09:17', endTime: '09:37' }, { startTime: '14:00', endTime: '14:30' }] },
+    { date: '2026-11-10', weekday: 2, slots: [{ startTime: '16:00', endTime: '16:25' }] },
+  ];
+  const tasks = schedulePlan([lesson], { ...preferences, schedule }, '2026-11-09');
+  assert.deepEqual(tasks.map(task => [task.date, task.startMinute, task.endMinute, task.duration]),
+    [['2026-11-09', 557, 577, 20], ['2026-11-09', 840, 870, 30], ['2026-11-10', 960, 985, 25]]);
+});
+test('时段不足不向未设置日期排课，校验星期、重复日期和重叠', () => {
+  const day = { date: '2026-11-09', weekday: 1, slots: [{ startTime: '23:59', endTime: '24:00' }] };
+  assert.equal(schedulePlan([lesson], { ...preferences, schedule: [day] }, day.date).reduce((n,t) => n+t.duration,0), 1);
+  assert.equal(validSchedule([{ ...day, weekday: 2 }]), false);
+  assert.equal(validSchedule([day, day]), false);
+  assert.equal(validSchedule([{ ...day, slots: [{ startTime: '10:00', endTime: '11:00' }, { startTime: '10:30', endTime: '12:00' }] }]), false);
+  assert.equal(validSchedule([{ ...day, slots: [] }]), true);
+});
+
+ test('全部课程包含所有模块且不重复', () => {
+  assert.deepEqual(moduleOrder({ goal: 'all', level: 'beginner' }), ['engineering-basics', 'llm-basics', 'llm-app-dev', 'agents', 'rag']);
 });
