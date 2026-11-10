@@ -275,9 +275,9 @@ h2 { font-size: 34px; margin: 14px 0 18px; letter-spacing: -.6px; }
 .historical-story { width: 100%; max-width: 920px; align-self: center; padding: 6px 0; container-type: inline-size; container-name: historical-article; }
 .history-heading { display: flex; align-items: center; gap: 30px; padding-bottom: 25px; border-bottom: 1px solid #e5ebf5; }
 .history-year { display: flex; flex-direction: column; flex-shrink: 0; padding-right: 30px; border-right: 1px solid #e3eaf7; font-family: Georgia, serif; font-size: 70px; line-height: 1; letter-spacing: -4px; color: #6682c1; }
-.history-year span { margin-top: 11px; font-family: Inter, "Microsoft YaHei", sans-serif; font-size: 11px; line-height: 1.4; letter-spacing: 3px; color: #8394b4; text-align: center; }
+.history-year span { margin-top: 11px; font-family: var(--font-ui); font-size: 11px; line-height: 1.4; letter-spacing: 3px; color: #8394b4; text-align: center; }
 .history-year.long-period { font-size: 42px; letter-spacing: -2px; }
-.history-year.text-period { font-family: Inter, "Microsoft YaHei", sans-serif; font-size: 46px; letter-spacing: 2px; }
+.history-year.text-period { font-family: var(--font-ui); font-size: 46px; letter-spacing: 2px; }
 .history-title h2 { margin: 12px 0 0; font-size: 30px; font-weight: 650; letter-spacing: -.5px; line-height: 1.4; }
 .history-title .reading-meta { font-size: 12px; color: #8291ad; }
 .story-navigation { justify-content: space-between; flex-wrap: wrap; padding: 22px 0 0; margin-top: 28px; border: 0; border-top: 1px solid #e6eaf1; border-radius: 0; background: transparent; }

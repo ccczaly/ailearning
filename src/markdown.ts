@@ -1,3 +1,4 @@
+import { parseRagInteraction, type RagInteraction } from './rag-interaction.ts';
 import MarkdownIt from 'markdown-it';
 import cjkFriendly from 'markdown-it-cjk-friendly';
 import { parseAgentInteraction } from './agent-interaction.ts';
@@ -20,7 +21,7 @@ export function renderMarkdown(source: string): string {
 // Both reading layouts use the same renderer with authored HTML disabled.
 export type LessonDiagram = { kind: 'flow' | 'compare'; steps: { title: string; description: string }[] };
 
-export function renderLessonSections(source: string): { title: string; html: string; contentHtml: string; diagrams: LessonDiagram[]; interactions: AgentInteraction[]; interactionError: boolean }[] {
+export function renderLessonSections(source: string): { title: string; html: string; contentHtml: string; diagrams: LessonDiagram[]; interactions: (AgentInteraction | RagInteraction)[]; interactionError: boolean }[] {
   const tokens = markdown.parse(source, {});
   const groups: { start: number; title: string }[] = [{ start: 0, title: '' }];
   for (let i = 0; i < tokens.length; i++) {
@@ -32,12 +33,12 @@ export function renderLessonSections(source: string): { title: string; html: str
     const sectionTokens = tokens.slice(group.start, groups[index + 1]?.start);
     const html = markdown.renderer.render(sectionTokens, markdown.options, {});
     const diagrams: LessonDiagram[] = [];
-    const interactions: AgentInteraction[] = [];
+    const interactions: (AgentInteraction | RagInteraction)[] = [];
     let interactionError = false;
     const contentTokens = (group.title ? sectionTokens.slice(3) : sectionTokens).filter(token => {
       const kind = token.info.trim();
-      if (group.title && token.type === 'fence' && token.level === 0 && kind === 'agent') {
-        const interaction = parseAgentInteraction(token.content);
+      if (group.title && token.type === 'fence' && token.level === 0 && (kind === 'agent' || kind === 'rag')) {
+        const interaction = kind === 'rag' ? parseRagInteraction(token.content) : parseAgentInteraction(token.content);
         if (interaction) { interactions.push(interaction); return false; }
         // Interactive configuration is not lesson prose. Never expose broken JSON to learners.
         interactionError = true;

@@ -4,11 +4,18 @@ import { createHash } from 'node:crypto';
 
 const modules = ['engineering-basics', 'rag', 'agents', 'mcp', 'multimodal', 'app-engineering', 'deployment'];
 const courses = modules.map(code => JSON.parse(readFileSync(new URL(`../content/${code}.json`, import.meta.url), 'utf8')));
+// V36 adds RAG demos; V19 validation continues to use its original prose.
+const historicalCourses = structuredClone(courses);
+for (const course of historicalCourses) if (course.slug === 'rag') {
+  for (const chapter of course.chapters) for (const lesson of chapter.lessons) {
+    lesson.body = lesson.body.replace(/~~~rag\n[\s\S]*?\n~~~\n\n/g, '');
+  }
+}
 const destination = new URL('../server/src/main/resources/db/migration/V19__remaining_learning_courses.sql', import.meta.url);
 const metadataPath = new URL('../src/data/course-catalog.ts', import.meta.url);
 const allCourses = [JSON.parse(readFileSync(new URL('../content/llm-app-dev.json', import.meta.url), 'utf8')), ...courses];
 const titleSet = new Set();
-for (const [index, course] of courses.entries()) {
+for (const [index, course] of historicalCourses.entries()) {
   if (course.slug === 'agents') continue; // V22 owns the revised Agent curriculum.
   if (course.slug !== modules[index] || course.moduleCode !== modules[index] || course.chapters.length !== 4) throw Error(`Invalid module: ${course.slug}`);
   const keys = new Set();
@@ -40,7 +47,7 @@ const marker = slug => `INSERT INTO knowledge_points(module_id,slug,title,summar
 const legacyAgents = historical.slice(historical.indexOf(marker('agents')), historical.indexOf(marker('mcp'))).trim();
 const legacyHash = createHash('sha256').update(legacyAgents).digest('hex');
 if (legacyHash !== '28daecd8eb5d68691c270d303ec70c9fed1451b35f7bcdbb157f453e898f06c0') throw Error(`Historical V19 Agent block changed: ${legacyHash}`);
-for (const course of courses) {
+for (const course of historicalCourses) {
   if (course.slug === 'agents') { sql.push(legacyAgents); continue; }
   const minutes = course.chapters.flatMap(c => c.lessons).reduce((n, l) => n + l.minutes, 0);
   sql.push(`INSERT INTO knowledge_points(module_id,slug,title,summary,learning_objectives,estimated_minutes,sort_order,status) SELECT id,${quote(course.slug)},${quote(course.title)},${quote(course.summary)},${quote(course.learningObjectives)},${minutes},1,'PUBLISHED' FROM learning_modules WHERE code=${quote(course.moduleCode)};`);

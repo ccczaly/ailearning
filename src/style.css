@@ -1,12 +1,22 @@
+@font-face {
+  font-family: "LXGW WenKai Screen";
+  src: url("./assets/fonts/LXGWWenKaiScreen.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
+  --font-ui: "LXGW WenKai Screen", "PingFang SC", "Microsoft YaHei", sans-serif;
   --app-header-height: 56px;
-  font-family: Inter, "Microsoft YaHei", "PingFang SC", sans-serif;
+  font-family: var(--font-ui);
   color: #172346;
   background: #f8faff;
-  font-synthesis: none;
+  font-synthesis: weight;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   font-size: 14px;
+  line-height: 1.6;
 }
 * {
   box-sizing: border-box;
@@ -44,7 +54,9 @@ body {
   margin: 0;
 }
 button,
-input {
+input,
+textarea,
+select {
   font: inherit;
 }
 button {

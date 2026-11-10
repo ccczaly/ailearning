@@ -5,6 +5,7 @@ import ReadingIcon from './ReadingIcon.vue';
 import ElizaDiagram from './ElizaDiagram.vue';
 import MechanismDiagram from './MechanismDiagram.vue';
 import AgentInteraction from './AgentInteraction.vue';
+import RagInteraction from './RagInteraction.vue';
 
 const props = defineProps<{ source: string }>();
 const sections = computed(() => renderLessonSections(props.source));
@@ -59,7 +60,10 @@ const sections = computed(() => renderLessonSections(props.source));
         <ElizaDiagram v-else-if="section.title === '规则为什么会遇到边界'" kind="limits" />
         <MechanismDiagram v-for="(diagram, diagramIndex) in section.diagrams" :key="diagramIndex" :diagram="diagram" />
         <div class="history-prose" v-html="section.contentHtml"></div>
-        <AgentInteraction v-for="(interaction, interactionIndex) in section.interactions" :key="interactionIndex" :interaction="interaction" />
+        <template v-for="(interaction, interactionIndex) in section.interactions" :key="interactionIndex">
+          <RagInteraction v-if="interaction.kind === 'rag-demo'" :interaction="interaction" />
+          <AgentInteraction v-else :interaction="interaction" />
+        </template>
         <p v-if="section.interactionError" class="interaction-error" role="alert">这个互动暂时没有加载成功，请刷新页面后重试。</p>
       </section>
     </template>
