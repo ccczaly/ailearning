@@ -1,8 +1,8 @@
 export type StudyDay = { date: string; weekday: number; slots: { startTime: string; endTime: string }[] };
 export type Preferences = { goal: string; level: string; minutes: number; days: number[]; startTime?: string; schedule?: StudyDay[] };
 export type PlanLesson = { id: number; slug: string; title: string; module: string; minutes: number; completed: boolean };
-export type PlanTask = PlanLesson & { date: string; duration: number; part: number; parts: number; startMinute?: number; endMinute?: number };
-export type SavedPlan = { version: 1; preferences: Preferences; started: string };
+export type PlanTask = PlanLesson & { date: string; duration: number; part: number; parts: number; blockId?: string | null; startMinute?: number; endMinute?: number };
+export type SavedPlan = { version: 1; preferences: Preferences; started: string; tasks: PlanTask[] };
 export function dateKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
